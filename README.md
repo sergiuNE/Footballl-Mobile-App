@@ -1,22 +1,22 @@
-# Voetbal Mobile App
+# Football Mobile App
 
-Een moderne mobiele applicatie voor het organiseren van amateurvoetbalwedstrijden, gebouwd met React Native en Firebase.
+A modern mobile application for organizing amateur football matches, built with React Native and Firebase.
 
 ## Quick Start
 
-### Installatie
+### Installation
 ```bash
 npm install
 ```
 
-### App Starten
+### Start the App
 ```bash
 npx expo start --tunnel
 ```
 
-*Gebruik `--tunnel` voor iOS devices*
+*Use `--tunnel` for iOS devices*
 
-### Clean Start (bij problemen)
+### Clean Start (if you encounter issues)
 ```bash
 npx expo start -c --tunnel
 ```
@@ -24,7 +24,7 @@ npx expo start -c --tunnel
 ## Test Account
 
 **Email:** `test@test.com`  
-**Wachtwoord:** `test123`
+**Password:** `test123`
 
 ## Tech Stack
 
@@ -48,4 +48,4 @@ npx expo start -c --tunnel
 
 ---
 
-*Gemaakt voor Intro Mobile*
+*Created for Intro Mobile*
