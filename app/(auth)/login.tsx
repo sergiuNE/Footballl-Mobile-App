@@ -1,8 +1,12 @@
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from 'react-native';
+import { View, Text, StyleSheet, Alert, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import { useState } from 'react';
 import { Link, router } from 'expo-router';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '../../config/firebase';
+import Button from '../../components/Button';
+import Input from '../../components/Input';
+import { Colors, Spacing, Typography, BorderRadius } from '../../constants/theme';
+import { LinearGradient } from 'expo-linear-gradient';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -11,106 +15,135 @@ export default function Login() {
 
   const handleLogin = async () => {
     if (!email || !password) {
-      Alert.alert('Error', 'Vul alle velden in');
+      Alert.alert('Error', 'Fill in all fields');
       return;
     }
 
     setLoading(true);
     try {
-      // ECHTE Firebase login
       await signInWithEmailAndPassword(auth, email, password);
-      console.log('✅ Login succesvol!');
       router.replace('/(tabs)/home');
     } catch (error: any) {
-      console.log('❌ Login error:', error.message);
-      Alert.alert('Login Error', error.message);
+      Alert.alert('Login Error', 'Email or password is incorrect');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>⚽ Voetbal App</Text>
-      
-      <TextInput
-        style={styles.input}
-        placeholder="Email"
-        value={email}
-        onChangeText={setEmail}
-        keyboardType="email-address"
-        autoCapitalize="none"
-      />
-      
-      <TextInput
-        style={styles.input}
-        placeholder="Wachtwoord"
-        value={password}
-        onChangeText={setPassword}
-        secureTextEntry
-      />
-      
-      <TouchableOpacity 
-        style={[styles.button, loading && styles.buttonDisabled]} 
-        onPress={handleLogin}
-        disabled={loading}
+    <LinearGradient
+      colors={[Colors.gray50, Colors.white]}
+      style={styles.gradient}
+    >
+      <KeyboardAvoidingView 
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.container}
       >
-        <Text style={styles.buttonText}>
-          {loading ? 'Bezig...' : 'Inloggen'}
-        </Text>
-      </TouchableOpacity>
-      
-      <Link href="/(auth)/register" style={styles.link}>
-        <Text style={styles.linkText}>Nog geen account? Registreer hier</Text>
-      </Link>
-    </View>
+        <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+          {/* Header */}
+          <View style={styles.header}>
+            <View style={styles.iconContainer}>
+              <Text style={styles.icon}>⚽</Text>
+            </View>
+            <Text style={styles.title}>Welcome Back</Text>
+            <Text style={styles.subtitle}>Log in to continue</Text>
+          </View>
+
+          {/* Form */}
+          <View style={styles.form}>
+            <Input
+              label="Email"
+              placeholder="your@email.com"
+              value={email}
+              onChangeText={setEmail}
+              keyboardType="email-address"
+              autoCapitalize="none"
+            />
+
+            <Input
+              label="Password"
+              placeholder="••••••••"
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry
+            />
+
+            <Button 
+              title="Login"
+              onPress={handleLogin}
+              loading={loading}
+              fullWidth
+            />
+
+            <View style={styles.linkContainer}>
+              <Text style={styles.linkText}>Don't have an account? </Text>
+              <Link href="/(auth)/register">
+                <Text style={styles.link}>Register here</Text>
+              </Link>
+            </View>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
+  gradient: {
+    flex: 1,
+  },
   container: {
     flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
     justifyContent: 'center',
-    padding: 20,
-    backgroundColor: '#f5f5f5',
+    padding: Spacing.lg,
+  },
+  header: {
+    alignItems: 'center',
+    marginBottom: Spacing.xxl,
+  },
+  iconContainer: {
+    width: 80,
+    height: 80,
+    borderRadius: BorderRadius.full,
+    backgroundColor: Colors.white,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: Spacing.md,
+    shadowColor: Colors.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  icon: {
+    fontSize: 40,
   },
   title: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    marginBottom: 40,
-    textAlign: 'center',
-    color: '#007AFF',
+    ...Typography.h1,
+    color: Colors.gray900,
+    marginBottom: Spacing.xs,
   },
-  input: {
-    borderWidth: 1,
-    borderColor: '#ddd',
-    padding: 15,
-    borderRadius: 8,
-    marginBottom: 15,
-    fontSize: 16,
-    backgroundColor: '#fff',
+  subtitle: {
+    ...Typography.body,
+    color: Colors.gray500,
   },
-  button: {
-    backgroundColor: '#007AFF',
-    padding: 15,
-    borderRadius: 8,
-    alignItems: 'center',
-    marginTop: 10,
+  form: {
+    width: '100%',
   },
-  buttonDisabled: {
-    backgroundColor: '#ccc',
-  },
-  buttonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  link: {
-    marginTop: 20,
-    textAlign: 'center',
+  linkContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    marginTop: Spacing.lg,
   },
   linkText: {
-    color: '#007AFF',
-    fontSize: 14,
+    ...Typography.body,
+    color: Colors.gray600,
+  },
+  link: {
+    ...Typography.bodyBold,
+    color: Colors.primary,
   },
 });

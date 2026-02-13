@@ -21,7 +21,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="search"
         options={{
-          title: "Zoeken",
+          title: "Search",
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="search" size={size} color={color} />
           ),
@@ -30,7 +30,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="create"
         options={{
-          title: "Aanmaken",
+          title: "Create",
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="add-circle" size={size} color={color} />
           ),
@@ -39,7 +39,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="profile"
         options={{
-          title: "Profiel",
+          title: "Profile",
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="person" size={size} color={color} />
           ),

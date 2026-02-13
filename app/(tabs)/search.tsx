@@ -1,10 +1,222 @@
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl } from 'react-native';
+import { useState, useEffect } from 'react';
+import { collection, query, where, orderBy, getDocs, Timestamp } from 'firebase/firestore';
+import { db } from '../../config/firebase';
+import { router } from 'expo-router';
+import Card from '../../components/Card';
+import { Colors, Spacing, Typography, BorderRadius, Shadows } from '../../constants/theme';
+import { LinearGradient } from 'expo-linear-gradient';
+
+type SkillLevel = 'beginner' | 'intermediate' | 'advanced' | 'all';
+
+type Match = {
+  id: string;
+  title: string;
+  date: Date;
+  time: string;
+  location: string;
+  maxPlayers: number;
+  currentPlayers: number;
+  skillLevel: SkillLevel;
+  status: string;
+  createdByName: string;
+};
 
 export default function Search() {
+  const [matches, setMatches] = useState<Match[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState<'all' | 'open' | 'upcoming'>('all');
+
+  useEffect(() => {
+    loadMatches();
+  }, [filter]);
+
+  const loadMatches = async () => {
+    setLoading(true);
+    try {
+      // Build query zonder where + orderBy combinatie
+      let q = query(collection(db, 'matches'));
+
+      const snapshot = await getDocs(q);
+      const matchesData = snapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          ...data,
+          date: data.date instanceof Timestamp ? data.date.toDate() : new Date(data.date),
+        } as Match;
+      });
+
+      // Filter in JavaScript ipv Firestore
+      let filtered = matchesData;
+
+      if (filter === 'open') {
+        filtered = filtered.filter(m => m.status === 'open');
+      }
+
+      if (filter === 'upcoming') {
+        const now = new Date();
+        filtered = filtered.filter(m => m.date > now);
+      }
+
+      // Sorteer op datum
+      filtered.sort((a, b) => a.date.getTime() - b.date.getTime());
+
+      setMatches(filtered);
+    } catch (error) {
+      console.error('Error loading matches:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getSkillBadge = (level: SkillLevel) => {
+    const badges = {
+      all: { emoji: '🌟', label: 'All', color: Colors.primary },
+      beginner: { emoji: '🟢', label: 'Beginner', color: '#10b981' },
+      intermediate: { emoji: '🟡', label: 'Intermediate', color: '#f59e0b' },
+      advanced: { emoji: '🔴', label: 'Advanced', color: '#ef4444' },
+    };
+    return badges[level];
+  };
+
+  const getStatusBadge = (status: string) => {
+    if (status === 'open') return { text: 'Open', color: Colors.success };
+    if (status === 'full') return { text: 'Full', color: Colors.error };
+    return { text: status, color: Colors.gray500 };
+  };
+
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>🔍 Zoeken</Text>
-      <Text>Zoek wedstrijden</Text>
+      {/* Header */}
+      <LinearGradient
+        colors={[Colors.primary, Colors.primaryDark]}
+        style={styles.header}
+      >
+        <Text style={styles.headerTitle}>🔍 Find Matches</Text>
+        <Text style={styles.headerSubtitle}>Join a game near you</Text>
+      </LinearGradient>
+
+      {/* Filters */}
+      <View style={styles.filters}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+          {(['all', 'open', 'upcoming'] as const).map((f) => (
+            <TouchableOpacity
+              key={f}
+              style={[
+                styles.filterChip,
+                filter === f && styles.filterChipActive,
+              ]}
+              onPress={() => setFilter(f)}
+            >
+              <Text style={[
+                styles.filterText,
+                filter === f && styles.filterTextActive,
+              ]}>
+                {f.charAt(0).toUpperCase() + f.slice(1)}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      </View>
+
+      {/* Matches List */}
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.listContent}
+        refreshControl={
+          <RefreshControl refreshing={loading} onRefresh={loadMatches} />
+        }
+      >
+        {matches.length === 0 ? (
+          <View style={styles.emptyState}>
+            <Text style={styles.emptyEmoji}>⚽</Text>
+            <Text style={styles.emptyTitle}>No matches found</Text>
+            <Text style={styles.emptyText}>
+              {filter === 'open' 
+                ? 'No open matches at the moment' 
+                : 'Be the first to create a match!'}
+            </Text>
+          </View>
+        ) : (
+          matches.map((match) => {
+            const skill = getSkillBadge(match.skillLevel);
+            const status = getStatusBadge(match.status);
+            const isFull = match.currentPlayers >= match.maxPlayers;
+
+            return (
+              <TouchableOpacity
+                key={match.id}
+                activeOpacity={0.7}
+                onPress={() => {
+                  // TODO: Navigate to match detail
+                  console.log('Match clicked:', match.id);
+                }}
+              >
+                <Card style={styles.matchCard}>
+                  {/* Header Row */}
+                  <View style={styles.matchHeader}>
+                    <Text style={styles.matchTitle}>{match.title}</Text>
+                    <View style={[styles.statusBadge, { backgroundColor: status.color }]}>
+                      <Text style={styles.statusText}>{status.text}</Text>
+                    </View>
+                  </View>
+
+                  {/* Info Row */}
+                  <View style={styles.matchInfo}>
+                    <View style={styles.infoItem}>
+                      <Text style={styles.infoIcon}>📅</Text>
+                      <Text style={styles.infoText}>
+                        {match.date.toLocaleDateString('en-US', { 
+                          month: 'short', 
+                          day: 'numeric' 
+                        })}
+                      </Text>
+                    </View>
+
+                    <View style={styles.infoItem}>
+                      <Text style={styles.infoIcon}>🕐</Text>
+                      <Text style={styles.infoText}>{match.time}</Text>
+                    </View>
+
+                    <View style={styles.infoItem}>
+                      <Text style={styles.infoIcon}>📍</Text>
+                      <Text style={styles.infoText} numberOfLines={1}>
+                        {match.location}
+                      </Text>
+                    </View>
+                  </View>
+
+                  {/* Footer Row */}
+                  <View style={styles.matchFooter}>
+                    <View style={styles.footerLeft}>
+                      <View style={[styles.skillBadge, { backgroundColor: skill.color }]}>
+                        <Text style={styles.skillText}>
+                          {skill.emoji} {skill.label}
+                        </Text>
+                      </View>
+
+                      <View style={styles.playersInfo}>
+                        <Text style={styles.playersText}>
+                          👥 {match.currentPlayers}/{match.maxPlayers}
+                        </Text>
+                      </View>
+                    </View>
+
+                    <Text style={styles.organizerText}>by {match.createdByName}</Text>
+                  </View>
+
+                  {isFull && (
+                    <View style={styles.fullOverlay}>
+                      <Text style={styles.fullText}>Match is full</Text>
+                    </View>
+                  )}
+                </Card>
+              </TouchableOpacity>
+            );
+          })
+        )}
+      </ScrollView>
     </View>
   );
 }
@@ -12,13 +224,172 @@ export default function Search() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: Colors.background,
+  },
+  header: {
+    padding: Spacing.lg,
+    paddingTop: Spacing.xxl,
+    paddingBottom: Spacing.xl,
+  },
+  headerTitle: {
+    ...Typography.h1,
+    color: Colors.white,
+    marginBottom: Spacing.xs,
+  },
+  headerSubtitle: {
+    ...Typography.body,
+    color: 'rgba(255, 255, 255, 0.9)',
+  },
+  filters: {
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
+  },
+  filterChip: {
+    backgroundColor: Colors.white,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderRadius: BorderRadius.full,
+    marginRight: Spacing.sm,
+    borderWidth: 2,
+    borderColor: Colors.gray200,
+  },
+  filterChipActive: {
+    backgroundColor: Colors.primary,
+    borderColor: Colors.primary,
+  },
+  filterText: {
+    ...Typography.body,
+    color: Colors.gray700,
+    fontWeight: '600',
+  },
+  filterTextActive: {
+    color: Colors.white,
+  },
+  scrollView: {
+    flex: 1,
+  },
+  listContent: {
+    padding: Spacing.lg,
+    paddingTop: 0,
+  },
+  emptyState: {
+    alignItems: 'center',
+    paddingVertical: Spacing.xxl * 2,
+  },
+  emptyEmoji: {
+    fontSize: 64,
+    marginBottom: Spacing.md,
+  },
+  emptyTitle: {
+    ...Typography.h2,
+    color: Colors.gray900,
+    marginBottom: Spacing.xs,
+  },
+  emptyText: {
+    ...Typography.body,
+    color: Colors.gray500,
+    textAlign: 'center',
+  },
+  matchCard: {
+    marginBottom: Spacing.md,
+    position: 'relative',
+  },
+  matchHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: Spacing.sm,
+  },
+  matchTitle: {
+    ...Typography.h3,
+    color: Colors.gray900,
+    flex: 1,
+    marginRight: Spacing.sm,
+  },
+  statusBadge: {
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 4,
+    borderRadius: BorderRadius.sm,
+  },
+  statusText: {
+    ...Typography.tiny,
+    color: Colors.white,
+    fontWeight: '700',
+  },
+  matchInfo: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.sm,
+    marginBottom: Spacing.sm,
+  },
+  infoItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.gray50,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 4,
+    borderRadius: BorderRadius.sm,
+  },
+  infoIcon: {
+    fontSize: 14,
+    marginRight: 4,
+  },
+  infoText: {
+    ...Typography.small,
+    color: Colors.gray700,
+  },
+  matchFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingTop: Spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: Colors.gray100,
+  },
+  footerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+  },
+  skillBadge: {
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 4,
+    borderRadius: BorderRadius.sm,
+  },
+  skillText: {
+    ...Typography.tiny,
+    color: Colors.white,
+    fontWeight: '600',
+  },
+  playersInfo: {
+    backgroundColor: Colors.gray100,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 4,
+    borderRadius: BorderRadius.sm,
+  },
+  playersText: {
+    ...Typography.small,
+    color: Colors.gray700,
+    fontWeight: '600',
+  },
+  organizerText: {
+    ...Typography.tiny,
+    color: Colors.gray500,
+  },
+  fullOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#fff',
+    borderRadius: BorderRadius.lg,
   },
-  title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    marginBottom: 20,
+  fullText: {
+    ...Typography.h3,
+    color: Colors.white,
+    fontWeight: '700',
   },
 });
