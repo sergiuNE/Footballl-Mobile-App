@@ -134,7 +134,7 @@ export default function Create() {
         colors={[Colors.primary, Colors.primaryDark]}
         style={styles.header}
       >
-        <Text style={styles.headerTitle}>⚽ Create New Match</Text>
+        <Text style={styles.headerTitle}>Create New Match</Text>
         <Text style={styles.headerSubtitle}>Organize a football game</Text>
       </LinearGradient>
 

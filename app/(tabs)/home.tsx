@@ -31,7 +31,7 @@ export default function Home() {
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.title}>⚽ Football Field</Text>
+        <Text style={styles.title}>Football Field</Text>
         <Text style={styles.subtitle}>View and manage your lineup</Text>
       </View>
 

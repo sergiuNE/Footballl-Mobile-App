@@ -1,10 +1,10 @@
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl } from 'react-native';
 import { useState, useEffect } from 'react';
-import { collection, query, where, orderBy, getDocs, Timestamp } from 'firebase/firestore';
+import { collection, query, getDocs, Timestamp } from 'firebase/firestore';
 import { db } from '../../config/firebase';
 import { router } from 'expo-router';
 import Card from '../../components/Card';
-import { Colors, Spacing, Typography, BorderRadius, Shadows } from '../../constants/theme';
+import { Colors, Spacing, Typography, BorderRadius } from '../../constants/theme';
 import { LinearGradient } from 'expo-linear-gradient';
 
 type SkillLevel = 'beginner' | 'intermediate' | 'advanced' | 'all';
@@ -25,7 +25,7 @@ type Match = {
 export default function Search() {
   const [matches, setMatches] = useState<Match[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState<'all' | 'open' | 'upcoming'>('all');
+  const [filter, setFilter] = useState<'all' | 'open' | 'upcoming' | 'history'>('all');
 
   useEffect(() => {
     loadMatches();
@@ -34,7 +34,6 @@ export default function Search() {
   const loadMatches = async () => {
     setLoading(true);
     try {
-      // Build query zonder where + orderBy combinatie
       let q = query(collection(db, 'matches'));
 
       const snapshot = await getDocs(q);
@@ -47,20 +46,26 @@ export default function Search() {
         } as Match;
       });
 
-      // Filter in JavaScript ipv Firestore
+      const now = new Date();
       let filtered = matchesData;
 
-      if (filter === 'open') {
-        filtered = filtered.filter(m => m.status === 'open');
-      }
+      // Filter logic
+      if (filter === 'history') {
+        // Only past matches
+        filtered = filtered.filter(m => m.date < now);
+        // Sort newest first for history
+        filtered.sort((a, b) => b.date.getTime() - a.date.getTime());
+      } else {
+        // All other filters: only future matches
+        filtered = filtered.filter(m => m.date >= now);
 
-      if (filter === 'upcoming') {
-        const now = new Date();
-        filtered = filtered.filter(m => m.date > now);
-      }
+        if (filter === 'open') {
+          filtered = filtered.filter(m => m.status === 'open');
+        }
 
-      // Sorteer op datum
-      filtered.sort((a, b) => a.date.getTime() - b.date.getTime());
+        // Sort oldest first for upcoming
+        filtered.sort((a, b) => a.date.getTime() - b.date.getTime());
+      }
 
       setMatches(filtered);
     } catch (error) {
@@ -83,7 +88,28 @@ export default function Search() {
   const getStatusBadge = (status: string) => {
     if (status === 'open') return { text: 'Open', color: Colors.success };
     if (status === 'full') return { text: 'Full', color: Colors.error };
+    if (status === 'completed') return { text: 'Completed', color: Colors.gray600 };
     return { text: status, color: Colors.gray500 };
+  };
+
+  const getFilterLabel = (f: typeof filter) => {
+    const labels = {
+      all: 'All',
+      open: 'Open',
+      upcoming: 'Upcoming',
+      history: 'History',
+    };
+    return labels[f];
+  };
+
+  const getEmptyMessage = () => {
+    if (filter === 'history') {
+      return 'No past matches yet';
+    }
+    if (filter === 'open') {
+      return 'No open matches at the moment';
+    }
+    return 'Be the first to create a match!';
   };
 
   return (
@@ -93,14 +119,16 @@ export default function Search() {
         colors={[Colors.primary, Colors.primaryDark]}
         style={styles.header}
       >
-        <Text style={styles.headerTitle}>🔍 Find Matches</Text>
-        <Text style={styles.headerSubtitle}>Join a game near you</Text>
+        <Text style={styles.headerTitle}>Find Matches</Text>
+        <Text style={styles.headerSubtitle}>
+          {filter === 'history' ? 'View your match history' : 'Join a game near you'}
+        </Text>
       </LinearGradient>
 
       {/* Filters */}
       <View style={styles.filters}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-          {(['all', 'open', 'upcoming'] as const).map((f) => (
+          {(['all', 'open', 'upcoming', 'history'] as const).map((f) => (
             <TouchableOpacity
               key={f}
               style={[
@@ -113,7 +141,7 @@ export default function Search() {
                 styles.filterText,
                 filter === f && styles.filterTextActive,
               ]}>
-                {f.charAt(0).toUpperCase() + f.slice(1)}
+                {getFilterLabel(f)}
               </Text>
             </TouchableOpacity>
           ))}
@@ -130,33 +158,39 @@ export default function Search() {
       >
         {matches.length === 0 ? (
           <View style={styles.emptyState}>
-            <Text style={styles.emptyEmoji}>⚽</Text>
-            <Text style={styles.emptyTitle}>No matches found</Text>
-            <Text style={styles.emptyText}>
-              {filter === 'open' 
-                ? 'No open matches at the moment' 
-                : 'Be the first to create a match!'}
+            <Text style={styles.emptyEmoji}>
+              {filter === 'history' ? '📜' : '⚽'}
             </Text>
+            <Text style={styles.emptyTitle}>No matches found</Text>
+            <Text style={styles.emptyText}>{getEmptyMessage()}</Text>
           </View>
         ) : (
           matches.map((match) => {
             const skill = getSkillBadge(match.skillLevel);
             const status = getStatusBadge(match.status);
             const isFull = match.currentPlayers >= match.maxPlayers;
+            const isPast = filter === 'history';
 
             return (
               <TouchableOpacity
                 key={match.id}
                 activeOpacity={0.7}
                 onPress={() => {
-                  // TODO: Navigate to match detail
                   console.log('Match clicked:', match.id);
                 }}
               >
-                <Card style={styles.matchCard}>
+                <Card style={[
+                  styles.matchCard,
+                  isPast ? styles.matchCardPast:null,
+                ]}>
                   {/* Header Row */}
                   <View style={styles.matchHeader}>
-                    <Text style={styles.matchTitle}>{match.title}</Text>
+                    <Text style={[
+                      styles.matchTitle,
+                      isPast ? styles.matchTitlePast:null,
+                    ]}>
+                      {match.title}
+                    </Text>
                     <View style={[styles.statusBadge, { backgroundColor: status.color }]}>
                       <Text style={styles.statusText}>{status.text}</Text>
                     </View>
@@ -169,7 +203,8 @@ export default function Search() {
                       <Text style={styles.infoText}>
                         {match.date.toLocaleDateString('en-US', { 
                           month: 'short', 
-                          day: 'numeric' 
+                          day: 'numeric',
+                          year: isPast ? 'numeric' : undefined,
                         })}
                       </Text>
                     </View>
@@ -206,7 +241,7 @@ export default function Search() {
                     <Text style={styles.organizerText}>by {match.createdByName}</Text>
                   </View>
 
-                  {isFull && (
+                  {isFull && !isPast && (
                     <View style={styles.fullOverlay}>
                       <Text style={styles.fullText}>Match is full</Text>
                     </View>
@@ -294,6 +329,10 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.md,
     position: 'relative',
   },
+  matchCardPast: {
+    opacity: 0.7,
+    backgroundColor: Colors.gray50,
+  },
   matchHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -305,6 +344,9 @@ const styles = StyleSheet.create({
     color: Colors.gray900,
     flex: 1,
     marginRight: Spacing.sm,
+  },
+  matchTitlePast: {
+    color: Colors.gray600,
   },
   statusBadge: {
     paddingHorizontal: Spacing.sm,
