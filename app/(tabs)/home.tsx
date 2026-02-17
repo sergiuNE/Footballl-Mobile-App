@@ -27,6 +27,25 @@ export default function Home() {
     router.replace("/(auth)/login");
   };
 
+  const renderMatch = ({ item }: { item: Match }) => (
+    <TouchableOpacity
+      style={styles.card}
+      onPress={() => router.push({ pathname: '/match/[id]', params: { id: item.id } })}
+      activeOpacity={0.7}
+    >
+      <View style={styles.cardHeader}>
+        <Ionicons name="football-outline" size={24} color="#007AFF" />
+        <Text style={styles.cardTitle}>{item.location}</Text>
+      </View>
+      <Text style={styles.cardMeta}>
+        {formatDate(item.date as { seconds: number })} · {item.time}
+      </Text>
+      <Text style={styles.cardPlayers}>
+        {item.players?.length ?? 0} / {item.maxPlayers} spelers
+      </Text>
+    </TouchableOpacity>
+  );
+
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       {/* Header */}

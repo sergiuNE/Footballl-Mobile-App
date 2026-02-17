@@ -422,5 +422,43 @@ const styles = StyleSheet.create({
   picker: {
     backgroundColor: Colors.white,
     height: 200,
+  scroll: { flex: 1, backgroundColor: '#f5f5f5' },
+  container: {
+    padding: 20,
+    paddingBottom: 40,
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginBottom: 24,
+    textAlign: 'center',
+  },
+  label: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 6,
+    color: '#333',
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: '#ddd',
+    padding: 14,
+    borderRadius: 8,
+    marginBottom: 16,
+    fontSize: 16,
+    backgroundColor: '#fff',
+  },
+  button: {
+    backgroundColor: '#34C759',
+    padding: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  buttonDisabled: { backgroundColor: '#aaa' },
+  buttonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
 });

@@ -146,4 +146,8 @@ const styles = StyleSheet.create({
     ...Typography.bodyBold,
     color: Colors.primary,
   },
+  linkText: {
+    color: '#007AFF',
+    fontSize: 14,
+  },
 });
