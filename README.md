@@ -180,6 +180,6 @@ The app includes 5 pre-loaded users for testing:
 
 **Course:** Intro Mobile   
 **Institution:** AP Hogeschool  
-**Year:** 2026-2027
+**Year:** 2026
 
 ---
