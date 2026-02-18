@@ -58,6 +58,7 @@ npx expo start -c --tunnel
 rm -rf node_modules
 npm install
 ```
+
 ---
 
 ## Features
@@ -67,83 +68,101 @@ npm install
   - User registration with email/password
   - Secure login with Firebase Auth
   - Persistent sessions with AsyncStorage
+  - Auto-login on app restart
   
 - **Profile Management**
   - Edit name and favorite positions
-  - View personal stats (rating, matches played)
+  - View personal stats (rating, matches played, goals)
+  - Beautiful gradient avatar with user initials
   - Logout functionality
 
-- **Match Creation**
+- **Match Management**
   - Create new football matches
-  - Set date, time, and location
+  - Set date, time, and location with native pickers
   - Choose skill level (Beginner, Intermediate, Advanced, All)
   - Define max players (2-22)
+  - Join/leave matches
+  - View match details with lineup
+  - Manage player positions (creator only)
+  - Match statistics (score, shots on target)
 
 - **Match Discovery**
   - Browse all available matches
-  - Filter by status (All, Open, Upcoming)
+  - Filter by status (Upcoming, Past, All, Open)
   - View match details (date, time, location, players)
   - Pull-to-refresh functionality
+  - Past matches in History tab
 
 - **Field Visualization**
   - Interactive football field layout
   - Multiple formations (4-3-3, 4-4-2, 3-5-2, 4-2-3-1)
-  - Player positioning system
+  - Player positioning system with jersey numbers
   - Formation switcher
+  - Click players to view their profiles
+
+- **Field Reservation**
+  - Reserve football fields in Antwerp
+  - 8 available locations
+  - Choose date and time slots
+  - View your reservations
+
+- **Social Features**
+  - View other player profiles
+  - Real-time chat with players
+  - Send challenges (Penalty Shootout, 1v1)
+  - Give ratings to other players (1-10)
+  - View player statistics
+  - Accept/decline challenges
+
+- **Notifications**
+  - Challenge notifications
+  - Accept/decline challenges
+  - Real-time updates
 
 - **Modern UI/UX**
-  - Gradient design system
+  - Gradient design system (emerald green theme)
   - Reusable components (Button, Input, Card)
   - Consistent typography and spacing
   - Smooth animations and transitions
-
-### Coming Soon
-- Match detail view with lineup
-- Join/leave match functionality
-- Real-time player chat
-- Field reservation system
-- Player rating system
-- Match history
-
----
-
-## Tech Stack
-
-| Technology | Purpose |
-|------------|---------|
-| **React Native** | Cross-platform mobile development |
-| **Expo** | Development toolchain and SDK |
-| **TypeScript** | Type-safe JavaScript |
-| **Firebase Auth** | User authentication |
-| **Cloud Firestore** | NoSQL database |
-| **Expo Router** | File-based navigation |
-| **React Native Async Storage** | Persistent local storage |
-| **Expo Linear Gradient** | Gradient backgrounds |
-
----
-
-## Design System
-
-### Color Palette
-- **Primary Green:** `#10B981` (Emerald)
-- **Accent:** `#059669` (Dark Green)
-- **Background:** `#F9FAFB` (Light Gray)
-- **Text:** `#111827` (Near Black)
-
-### Components
-All UI components follow a consistent design language with:
-- Gradient backgrounds for primary actions
-- Rounded corners (8-24px)
-- Elevation shadows for depth
-- Responsive touch feedback
+  - WhatsApp-style chat interface
+  - Beautiful empty states
 
 ---
 
 ## Testing
 
-### Test Account
+### Test Account 1 (Sergiu)
 **Email:** `test@test.com`  
 **Password:** `test123`
+
+### Test Account 2 (Rayane)
+**Email:** `test1@test.com`  
+**Password:** `Test1234`
+
+### Test Account 3 (John)
+**Email:** `john@test.com`  
+**Password:** `test123`
+
+### Test Account 4 (Mike)
+**Email:** `mike@test.com`  
+**Password:** `test123`
+
+### Test Account 5 (Alex)
+**Email:** `alex@test.com`  
+**Password:** `test123`
+
+### Test Account 6 (Maggie)
+**Email:** `maggie@test.com`  
+**Password:** `test123`
+
+
+### Pre-loaded Users
+The app includes 5 pre-loaded users for testing:
+- **Sergiu** (LW/RW) - Rating: 8.5
+- **Rayane** (RB/LB) - Rating: 9.2
+- **John** (ST) - Rating: 7.8
+- **Mike** (CM) - Rating: 8.1
+- **Alex** (CM/ST) - Rating: 6.9
 
 ### Creating Your Own Account
 1. Open the app
@@ -156,16 +175,11 @@ All UI components follow a consistent design language with:
 ## Team
 
 **Developed by:**
-- [Rayane Amarchouh](https://github.com/RayaneAm)
 - [Sergiu Neagu](https://github.com/sergiuNE)
+- [Rayane Amarchouh](https://github.com/RayaneAm)
 
-**Course:** Intro Mobile  
-**Year:** 2026
-
----
-
-## License
-
-This project is created for educational purposes.
+**Course:** Intro Mobile   
+**Institution:** AP Hogeschool  
+**Year:** 2026-2027
 
 ---

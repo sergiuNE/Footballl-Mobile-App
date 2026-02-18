@@ -125,7 +125,7 @@ export default function Search() {
       >
         <Text style={styles.headerTitle}>Find Matches</Text>
         <Text style={styles.headerSubtitle}>
-          {filter === 'history' ? 'View your match history' : 'Join a game near you'}
+          {filter === 'past' ? 'View your match history' : 'Join a game near you'}
         </Text>
       </LinearGradient>
 

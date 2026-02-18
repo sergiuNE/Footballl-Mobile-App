@@ -10,9 +10,9 @@ import {
   KeyboardAvoidingView,
   Platform,
   FlatList,
-} from 'react-native';
-import { useLocalSearchParams, router } from 'expo-router';
-import { useEffect, useState } from 'react';
+} from "react-native";
+import { useLocalSearchParams, router } from "expo-router";
+import { useEffect, useState } from "react";
 import {
   doc,
   getDoc,
@@ -23,14 +23,34 @@ import {
   orderBy,
   onSnapshot,
   serverTimestamp,
-} from 'firebase/firestore';
-import { auth, db } from '../../config/firebase';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
-import { Colors, Spacing, Typography, BorderRadius, Shadows } from '../../constants/theme';
+} from "firebase/firestore";
+import { auth, db } from "../../config/firebase";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { Ionicons } from "@expo/vector-icons";
+import {
+  Colors,
+  Spacing,
+  Typography,
+  BorderRadius,
+  Shadows,
+} from "../../constants/theme";
+import { LinearGradient } from "expo-linear-gradient";
+import Card from "../../components/Card";
 
-type UserProfile = { id: string; name: string; email?: string; rating?: number; matchesPlayed?: number };
-type ChatMessage = { id: string; text: string; senderId: string; senderName: string; createdAt: Date };
+type UserProfile = {
+  id: string;
+  name: string;
+  email?: string;
+  rating?: number;
+  matchesPlayed?: number;
+};
+type ChatMessage = {
+  id: string;
+  text: string;
+  senderId: string;
+  senderName: string;
+  createdAt: Date;
+};
 
 export default function UserProfileScreen() {
   const { id: userId } = useLocalSearchParams<{ id: string }>();
@@ -40,13 +60,13 @@ export default function UserProfileScreen() {
   const [showRating, setShowRating] = useState(false);
   const [showChat, setShowChat] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [newMessage, setNewMessage] = useState('');
+  const [newMessage, setNewMessage] = useState("");
   const [sending, setSending] = useState(false);
   const [challengeSent, setChallengeSent] = useState(false);
   const [showChallengeType, setShowChallengeType] = useState(false);
   const challengeTypes = [
-    { id: 'penalty_shootout' as const, label: 'Penalty shootout' },
-    { id: '1v1' as const, label: '1v1' },
+    { id: "penalty_shootout" as const, label: "Penalty Shootout" },
+    { id: "1v1" as const, label: "1v1 Match" },
   ];
 
   const currentUserId = auth.currentUser?.uid;
@@ -56,12 +76,12 @@ export default function UserProfileScreen() {
     if (!userId) return;
     const load = async () => {
       try {
-        const u = await getDoc(doc(db, 'users', userId));
+        const u = await getDoc(doc(db, "users", userId));
         if (u.exists()) {
           const d = u.data();
           setUser({
             id: u.id,
-            name: d.name ?? 'Speler',
+            name: d.name ?? "Player",
             email: d.email,
             rating: d.rating ?? 5,
             matchesPlayed: d.matchesPlayed ?? 0,
@@ -82,10 +102,10 @@ export default function UserProfileScreen() {
     if (!showChat || !userId || !currentUserId) return;
     const myId = currentUserId;
     const otherId = userId;
-    const chatId = [myId, otherId].sort().join('_');
+    const chatId = [myId, otherId].sort().join("_");
     const q = query(
-      collection(db, 'chats', chatId, 'messages'),
-      orderBy('createdAt', 'asc')
+      collection(db, "chats", chatId, "messages"),
+      orderBy("createdAt", "asc"),
     );
     const unsub = onSnapshot(q, (snap) => {
       const list = snap.docs.map((d) => {
@@ -94,7 +114,7 @@ export default function UserProfileScreen() {
           id: d.id,
           text: data.text,
           senderId: data.senderId,
-          senderName: data.senderName ?? '',
+          senderName: data.senderName ?? "",
           createdAt: data.createdAt?.toDate?.() ?? new Date(),
         };
       });
@@ -103,44 +123,45 @@ export default function UserProfileScreen() {
     return () => unsub();
   }, [showChat, userId, currentUserId]);
 
-  const handleChallenge = async (challengeType: 'penalty_shootout' | '1v1') => {
+  const handleChallenge = async (challengeType: "penalty_shootout" | "1v1") => {
     setShowChallengeType(false);
     if (!currentUserId || !userId || !user) return;
     try {
-      const me = await getDoc(doc(db, 'users', currentUserId));
-      const fromUserName = me.exists() ? me.data().name : 'Iemand';
-      await addDoc(collection(db, 'challenges'), {
+      const me = await getDoc(doc(db, "users", currentUserId));
+      const fromUserName = me.exists() ? me.data().name : "Someone";
+      await addDoc(collection(db, "challenges"), {
         fromUserId: currentUserId,
         fromUserName,
         toUserId: userId,
         type: challengeType,
-        status: 'pending',
+        status: "pending",
         createdAt: new Date(),
       });
       setChallengeSent(true);
-      Alert.alert('Verzonden', 'Challenge verstuurd! De andere persoon krijgt een melding.');
+      Alert.alert("Sent!", "Challenge sent! The player will be notified.");
     } catch {
-      Alert.alert('Fout', 'Challenge kon niet worden verstuurd.');
+      Alert.alert("Error", "Could not send challenge.");
     }
   };
 
   const handleSubmitRating = async () => {
     if (!currentUserId || !userId || !user) return;
     try {
-      const userRef = doc(db, 'users', userId);
+      const userRef = doc(db, "users", userId);
       const u = await getDoc(userRef);
       const current = u.data()?.rating ?? 5;
       const count = u.data()?.ratingCount ?? 0;
-      const newRating = count > 0 ? (current * count + ratingValue) / (count + 1) : ratingValue;
+      const newRating =
+        count > 0 ? (current * count + ratingValue) / (count + 1) : ratingValue;
       await updateDoc(userRef, {
         rating: Math.round(newRating * 10) / 10,
         ratingCount: count + 1,
       });
       setUser((prev) => (prev ? { ...prev, rating: newRating } : null));
       setShowRating(false);
-      Alert.alert('Bedankt', 'Rating opgeslagen.');
+      Alert.alert("Thank you!", "Rating saved.");
     } catch {
-      Alert.alert('Fout', 'Rating kon niet worden opgeslagen.');
+      Alert.alert("Error", "Could not save rating.");
     }
   };
 
@@ -148,20 +169,20 @@ export default function UserProfileScreen() {
     if (!newMessage.trim() || !currentUserId || !userId) return;
     const myId = currentUserId;
     const otherId = userId;
-    const chatId = [myId, otherId].sort().join('_');
-    const myDoc = await getDoc(doc(db, 'users', myId));
-    const senderName = myDoc.data()?.name ?? 'Ik';
+    const chatId = [myId, otherId].sort().join("_");
+    const myDoc = await getDoc(doc(db, "users", myId));
+    const senderName = myDoc.data()?.name ?? "Me";
     setSending(true);
     try {
-      await addDoc(collection(db, 'chats', chatId, 'messages'), {
+      await addDoc(collection(db, "chats", chatId, "messages"), {
         text: newMessage.trim(),
         senderId: myId,
         senderName,
         createdAt: serverTimestamp(),
       });
-      setNewMessage('');
+      setNewMessage("");
     } catch {
-      Alert.alert('Fout', 'Bericht kon niet worden verzonden.');
+      Alert.alert("Error", "Could not send message.");
     } finally {
       setSending(false);
     }
@@ -174,118 +195,254 @@ export default function UserProfileScreen() {
       </View>
     );
   }
+
   if (!user) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-            <Ionicons name="arrow-back" size={24} color={Colors.gray800} />
+          <TouchableOpacity
+            onPress={() => router.back()}
+            style={styles.backBtn}
+          >
+            <Ionicons name="arrow-back" size={24} color={Colors.gray900} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Profiel</Text>
+          <Text style={styles.headerTitle}>Profile</Text>
         </View>
         <View style={styles.centered}>
-          <Text style={styles.empty}>Gebruiker niet gevonden.</Text>
+          <Text style={styles.empty}>User not found.</Text>
         </View>
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => (showChat ? setShowChat(false) : router.back())} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={24} color={Colors.gray800} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>{user.name}</Text>
-      </View>
+    <SafeAreaView style={styles.container} edges={[]}>
+      {/* Header */}
+      {!showChat ? (
+        <LinearGradient
+          colors={[Colors.primary, Colors.primaryDark]}
+          style={styles.headerGradient}
+        >
+          <TouchableOpacity
+            onPress={() => router.back()}
+            style={styles.backBtn}
+          >
+            <Ionicons name="arrow-back" size={24} color={Colors.white} />
+          </TouchableOpacity>
+          <Text style={styles.headerTitleWhite}>{user.name}</Text>
+        </LinearGradient>
+      ) : (
+        <View style={styles.chatHeader}>
+          <TouchableOpacity
+            onPress={() => setShowChat(false)}
+            style={styles.backBtn}
+          >
+            <Ionicons name="arrow-back" size={24} color={Colors.gray900} />
+          </TouchableOpacity>
+          <View style={styles.chatHeaderInfo}>
+            <Text style={styles.chatHeaderTitle}>{user.name}</Text>
+            <Text style={styles.chatHeaderSubtitle}>Online</Text>
+          </View>
+        </View>
+      )}
 
       {!showChat ? (
-        <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
-          <View style={styles.avatarRow}>
-            <View style={styles.avatar}>
-              <Text style={styles.avatarText}>{user.name.charAt(0).toUpperCase()}</Text>
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={styles.scrollContent}
+        >
+          {/* Profile Header */}
+          <Card style={styles.profileCard}>
+            <View style={styles.avatarContainer}>
+              <LinearGradient
+                colors={[Colors.primary, Colors.primaryDark]}
+                style={styles.avatar}
+              >
+                <Text style={styles.avatarText}>
+                  {user.name.charAt(0).toUpperCase()}
+                </Text>
+              </LinearGradient>
             </View>
-            <Text style={styles.name}>{user.name}</Text>
+            <Text style={styles.userName}>{user.name}</Text>
             <View style={styles.ratingRow}>
-              <Ionicons name="star" size={18} color={Colors.warning} />
-              <Text style={styles.ratingText}>{user.rating?.toFixed(1) ?? '–'}</Text>
+              <Ionicons name="star" size={20} color={Colors.warning} />
+              <Text style={styles.ratingText}>
+                {user.rating?.toFixed(1) ?? "–"}
+              </Text>
             </View>
-            <Text style={styles.statsLabel}>Wedstrijden gespeeld: {user.matchesPlayed ?? 0}</Text>
-          </View>
+          </Card>
 
+          {/* Stats Card */}
+          <Card style={styles.statsCard}>
+            <Text style={styles.sectionTitle}>Statistics</Text>
+            <View style={styles.statsGrid}>
+              <View style={styles.statItem}>
+                <Ionicons name="football" size={32} color={Colors.primary} />
+                <Text style={styles.statValue}>{user.matchesPlayed ?? 0}</Text>
+                <Text style={styles.statLabel}>Matches</Text>
+              </View>
+              <View style={styles.statDivider} />
+              <View style={styles.statItem}>
+                <Ionicons name="star" size={32} color={Colors.warning} />
+                <Text style={styles.statValue}>
+                  {user.rating?.toFixed(1) ?? "–"}
+                </Text>
+                <Text style={styles.statLabel}>Rating</Text>
+              </View>
+            </View>
+          </Card>
+
+          {/* Actions */}
           {!isOwnProfile && currentUserId && (
             <View style={styles.actions}>
               <TouchableOpacity
-                style={[styles.actionBtn, styles.actionPrimary]}
-                onPress={() => (challengeSent ? undefined : setShowChallengeType(true))}
+                style={[
+                  styles.primaryActionBtn,
+                  challengeSent && styles.primaryActionBtnDisabled,
+                ]}
+                onPress={() =>
+                  challengeSent ? undefined : setShowChallengeType(true)
+                }
                 disabled={challengeSent}
               >
-                <Ionicons name="trophy-outline" size={22} color={Colors.white} />
-                <Text style={styles.actionBtnText}>{challengeSent ? 'Challenge verzonden' : 'Uitdagen'}</Text>
+                <LinearGradient
+                  colors={
+                    challengeSent
+                      ? [Colors.gray400, Colors.gray500]
+                      : [Colors.primary, Colors.primaryDark]
+                  }
+                  style={styles.btnGradient}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                >
+                  <Ionicons name="trophy" size={20} color={Colors.white} />
+                  <Text style={styles.primaryActionText}>
+                    {challengeSent ? "Challenge Sent" : "Challenge"}
+                  </Text>
+                </LinearGradient>
               </TouchableOpacity>
 
               {showChallengeType && (
-                <View style={styles.challengeTypeBox}>
-                  <Text style={styles.challengeTypeTitle}>Kies type uitdaging</Text>
+                <Card style={styles.challengeTypeCard}>
+                  <Text style={styles.challengeTypeTitle}>
+                    Choose Challenge Type
+                  </Text>
                   {challengeTypes.map((opt) => (
                     <TouchableOpacity
                       key={opt.id}
                       style={styles.challengeTypeBtn}
                       onPress={() => handleChallenge(opt.id)}
                     >
-                      <Text style={styles.challengeTypeBtnText}>{opt.label}</Text>
+                      <Ionicons
+                        name="trophy-outline"
+                        size={20}
+                        color={Colors.primary}
+                      />
+                      <Text style={styles.challengeTypeBtnText}>
+                        {opt.label}
+                      </Text>
+                      <Ionicons
+                        name="chevron-forward"
+                        size={18}
+                        color={Colors.gray400}
+                      />
                     </TouchableOpacity>
                   ))}
-                  <TouchableOpacity style={styles.challengeTypeCancel} onPress={() => setShowChallengeType(false)}>
-                    <Text style={styles.challengeTypeCancelText}>Annuleren</Text>
+                  <TouchableOpacity
+                    style={styles.challengeTypeCancelBtn}
+                    onPress={() => setShowChallengeType(false)}
+                  >
+                    <Text style={styles.challengeTypeCancelText}>Cancel</Text>
                   </TouchableOpacity>
-                </View>
+                </Card>
               )}
 
-              <TouchableOpacity style={styles.actionBtn} onPress={() => setShowRating(true)}>
-                <Ionicons name="star-outline" size={22} color={Colors.gray700} />
-                <Text style={styles.actionBtnTextSecondary}>Rating geven</Text>
+              <TouchableOpacity
+                style={styles.secondaryActionBtn}
+                onPress={() => setShowRating(true)}
+              >
+                <Ionicons
+                  name="star-outline"
+                  size={20}
+                  color={Colors.gray700}
+                />
+                <Text style={styles.secondaryActionText}>Give Rating</Text>
               </TouchableOpacity>
 
-              <TouchableOpacity style={styles.actionBtn} onPress={() => router.push(`/user/${userId}/stats` as any)}>
-                <Ionicons name="stats-chart-outline" size={22} color={Colors.gray700} />
-                <Text style={styles.actionBtnTextSecondary}>Statistieken</Text>
+              <TouchableOpacity
+                style={styles.secondaryActionBtn}
+                onPress={() => router.push(`/user/${userId}/stats` as any)}
+              >
+                <Ionicons
+                  name="stats-chart-outline"
+                  size={20}
+                  color={Colors.gray700}
+                />
+                <Text style={styles.secondaryActionText}>View Stats</Text>
               </TouchableOpacity>
 
-              <TouchableOpacity style={styles.actionBtn} onPress={() => setShowChat(true)}>
-                <Ionicons name="chatbubble-outline" size={22} color={Colors.gray700} />
-                <Text style={styles.actionBtnTextSecondary}>Chatten</Text>
+              <TouchableOpacity
+                style={styles.secondaryActionBtn}
+                onPress={() => setShowChat(true)}
+              >
+                <Ionicons
+                  name="chatbubble-outline"
+                  size={20}
+                  color={Colors.gray700}
+                />
+                <Text style={styles.secondaryActionText}>Send Message</Text>
               </TouchableOpacity>
             </View>
           )}
 
+          {/* Rating Modal */}
           {showRating && (
-            <View style={styles.ratingModal}>
-              <Text style={styles.ratingModalTitle}>Rating geven (1-10)</Text>
-              <View style={styles.ratingInputRow}>
+            <Card style={styles.ratingCard}>
+              <Text style={styles.ratingTitle}>Rate this player (1-10)</Text>
+              <View style={styles.ratingGrid}>
                 {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => (
                   <TouchableOpacity
                     key={n}
-                    style={[styles.ratingDot, ratingValue === n && styles.ratingDotSelected]}
+                    style={[
+                      styles.ratingBtn,
+                      ratingValue === n && styles.ratingBtnSelected,
+                    ]}
                     onPress={() => setRatingValue(n)}
                   >
-                    <Text style={[styles.ratingDotText, ratingValue === n && styles.ratingDotTextSelected]}>{n}</Text>
+                    <Text
+                      style={[
+                        styles.ratingBtnText,
+                        ratingValue === n && styles.ratingBtnTextSelected,
+                      ]}
+                    >
+                      {n}
+                    </Text>
                   </TouchableOpacity>
                 ))}
               </View>
-              <View style={styles.ratingModalActions}>
-                <TouchableOpacity style={styles.ratingCancel} onPress={() => setShowRating(false)}>
-                  <Text style={styles.ratingCancelText}>Annuleren</Text>
+              <View style={styles.ratingActions}>
+                <TouchableOpacity
+                  style={styles.ratingCancel}
+                  onPress={() => setShowRating(false)}
+                >
+                  <Text style={styles.ratingCancelText}>Cancel</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.ratingSubmit} onPress={handleSubmitRating}>
-                  <Text style={styles.ratingSubmitText}>Opslaan</Text>
+                <TouchableOpacity
+                  style={styles.ratingSubmit}
+                  onPress={handleSubmitRating}
+                >
+                  <Text style={styles.ratingSubmitText}>Submit</Text>
                 </TouchableOpacity>
               </View>
-            </View>
+            </Card>
           )}
         </ScrollView>
       ) : (
-        <KeyboardAvoidingView style={styles.chatContainer} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={100}>
+        <KeyboardAvoidingView
+          style={styles.chatContainer}
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
+          keyboardVerticalOffset={100}
+        >
           <FlatList
             data={messages}
             keyExtractor={(item) => item.id}
@@ -294,28 +451,59 @@ export default function UserProfileScreen() {
             renderItem={({ item }) => {
               const isMe = item.senderId === currentUserId;
               return (
-                <View style={[styles.chatBubble, isMe ? styles.chatBubbleMe : styles.chatBubbleThem]}>
-                  <Text style={[styles.chatBubbleText, isMe && styles.chatBubbleTextMe]}>{item.text}</Text>
+                <View
+                  style={[
+                    styles.messageBubble,
+                    isMe ? styles.messageBubbleMe : styles.messageBubbleThem,
+                  ]}
+                >
+                  {!isMe && (
+                    <Text style={styles.senderName}>{item.senderName}</Text>
+                  )}
+                  <Text
+                    style={[styles.messageText, isMe && styles.messageTextMe]}
+                  >
+                    {item.text}
+                  </Text>
+                  <Text
+                    style={[styles.messageTime, isMe && styles.messageTimeMe]}
+                  >
+                    {item.createdAt.toLocaleTimeString("en-US", {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </Text>
                 </View>
               );
             }}
           />
-          <View style={styles.chatInputRow}>
-            <TextInput
-              style={styles.chatInput}
-              placeholder="Bericht..."
-              value={newMessage}
-              onChangeText={setNewMessage}
-              multiline
-              maxLength={500}
-            />
-            <TouchableOpacity
-              style={[styles.chatSend, (!newMessage.trim() || sending) && styles.chatSendDisabled]}
-              onPress={sendMessage}
-              disabled={!newMessage.trim() || sending}
-            >
-              <Ionicons name="send" size={22} color={Colors.white} />
-            </TouchableOpacity>
+          <View style={styles.chatInputContainer}>
+            <View style={styles.chatInputWrapper}>
+              <TextInput
+                style={styles.chatInput}
+                placeholder="Type a message..."
+                placeholderTextColor={Colors.gray400}
+                value={newMessage}
+                onChangeText={setNewMessage}
+                multiline
+                maxLength={500}
+              />
+              <TouchableOpacity
+                style={[
+                  styles.sendBtn,
+                  (!newMessage.trim() || sending) && styles.sendBtnDisabled,
+                ]}
+                onPress={sendMessage}
+                disabled={!newMessage.trim() || sending}
+              >
+                <LinearGradient
+                  colors={[Colors.primary, Colors.primaryDark]}
+                  style={styles.sendBtnGradient}
+                >
+                  <Ionicons name="send" size={18} color={Colors.white} />
+                </LinearGradient>
+              </TouchableOpacity>
+            </View>
           </View>
         </KeyboardAvoidingView>
       )}
@@ -325,52 +513,342 @@ export default function UserProfileScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
-  centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 8, paddingVertical: 12, backgroundColor: Colors.white, borderBottomWidth: 1, borderBottomColor: Colors.gray200 },
-  backBtn: { padding: 8, marginRight: 8 },
-  headerTitle: { ...Typography.h3, color: Colors.gray900, flex: 1 },
+  centered: { flex: 1, justifyContent: "center", alignItems: "center" },
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.md,
+    backgroundColor: Colors.white,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.gray200,
+  },
+  headerGradient: {
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.xl,
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  chatHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.md,
+    backgroundColor: Colors.white,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.gray200,
+  },
+  chatHeaderInfo: { flex: 1 },
+  chatHeaderTitle: {
+    ...Typography.bodyBold,
+    color: Colors.gray900,
+  },
+  chatHeaderSubtitle: {
+    ...Typography.tiny,
+    color: Colors.success,
+    marginTop: 2,
+  },
+  backBtn: {
+    padding: Spacing.sm,
+    marginRight: Spacing.sm,
+  },
+  headerTitle: {
+    ...Typography.h3,
+    color: Colors.gray900,
+    flex: 1,
+  },
+  headerTitleWhite: {
+    ...Typography.h2,
+    color: Colors.white,
+    flex: 1,
+  },
   scroll: { flex: 1 },
-  scrollContent: { padding: Spacing.lg, paddingBottom: Spacing.xxl },
-  avatarRow: { alignItems: 'center', marginBottom: Spacing.xl },
-  avatar: { width: 80, height: 80, borderRadius: 40, backgroundColor: Colors.primary, justifyContent: 'center', alignItems: 'center', marginBottom: Spacing.sm },
-  avatarText: { fontSize: 32, fontWeight: '700', color: Colors.white },
-  name: { ...Typography.h2, color: Colors.gray900 },
-  ratingRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 },
-  ratingText: { ...Typography.bodyBold, color: Colors.gray800 },
-  statsLabel: { ...Typography.small, color: Colors.gray600, marginTop: 4 },
+  scrollContent: {
+    padding: Spacing.lg,
+    paddingBottom: Spacing.xxl,
+  },
+  profileCard: {
+    alignItems: "center",
+    marginBottom: Spacing.md,
+    paddingVertical: Spacing.xl,
+  },
+  avatarContainer: {
+    marginBottom: Spacing.md,
+    ...Shadows.large,
+  },
+  avatar: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 4,
+    borderColor: Colors.white,
+  },
+  avatarText: {
+    fontSize: 40,
+    fontWeight: "700",
+    color: Colors.white,
+  },
+  userName: {
+    ...Typography.h2,
+    color: Colors.gray900,
+    marginBottom: Spacing.xs,
+  },
+  ratingRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  ratingText: {
+    ...Typography.h3,
+    color: Colors.gray800,
+  },
+  statsCard: { marginBottom: Spacing.md },
+  sectionTitle: {
+    ...Typography.h3,
+    color: Colors.gray900,
+    marginBottom: Spacing.md,
+  },
+  statsGrid: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  statItem: {
+    flex: 1,
+    alignItems: "center",
+  },
+  statDivider: {
+    width: 1,
+    height: 60,
+    backgroundColor: Colors.gray200,
+  },
+  statValue: {
+    ...Typography.h2,
+    color: Colors.primary,
+    marginTop: Spacing.sm,
+    fontWeight: "700",
+  },
+  statLabel: {
+    ...Typography.small,
+    color: Colors.gray500,
+    marginTop: 4,
+  },
   actions: { gap: Spacing.sm },
-  actionBtn: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, backgroundColor: Colors.white, padding: Spacing.md, borderRadius: BorderRadius.md, borderWidth: 1, borderColor: Colors.gray200 },
-  actionPrimary: { backgroundColor: Colors.primary, borderColor: Colors.primary },
-  actionBtnText: { ...Typography.bodyBold, color: Colors.white },
-  actionBtnTextSecondary: { ...Typography.bodyBold, color: Colors.gray700 },
-  challengeTypeBox: { backgroundColor: Colors.white, padding: Spacing.md, borderRadius: BorderRadius.md, marginTop: Spacing.sm, borderWidth: 1, borderColor: Colors.gray200 },
-  challengeTypeTitle: { ...Typography.bodyBold, color: Colors.gray800, marginBottom: Spacing.sm },
-  challengeTypeBtn: { paddingVertical: Spacing.sm, paddingHorizontal: Spacing.md, marginBottom: Spacing.xs },
-  challengeTypeBtnText: { ...Typography.body, color: Colors.primary, fontWeight: '600' },
-  challengeTypeCancel: { paddingVertical: Spacing.sm, marginTop: Spacing.xs },
-  challengeTypeCancelText: { ...Typography.body, color: Colors.gray500 },
-  empty: { ...Typography.body, color: Colors.gray600 },
-  ratingModal: { backgroundColor: Colors.white, padding: Spacing.lg, borderRadius: BorderRadius.lg, marginTop: Spacing.lg, ...Shadows.medium },
-  ratingModalTitle: { ...Typography.bodyBold, marginBottom: Spacing.md },
-  ratingInputRow: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm, marginBottom: Spacing.md },
-  ratingDot: { width: 36, height: 36, borderRadius: 18, backgroundColor: Colors.gray100, justifyContent: 'center', alignItems: 'center' },
-  ratingDotSelected: { backgroundColor: Colors.primary },
-  ratingDotText: { ...Typography.bodyBold, color: Colors.gray700 },
-  ratingDotTextSelected: { color: Colors.white },
-  ratingModalActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: Spacing.sm },
-  ratingCancel: { padding: Spacing.sm },
-  ratingCancelText: { ...Typography.body, color: Colors.gray600 },
-  ratingSubmit: { padding: Spacing.sm, paddingHorizontal: Spacing.md },
-  ratingSubmitText: { ...Typography.bodyBold, color: Colors.primary },
-  chatContainer: { flex: 1 },
+  primaryActionBtn: {
+    borderRadius: BorderRadius.md,
+    overflow: "hidden",
+    ...Shadows.medium,
+  },
+  primaryActionBtnDisabled: {
+    opacity: 0.6,
+  },
+  btnGradient: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: Spacing.sm,
+    paddingVertical: Spacing.md,
+  },
+  primaryActionText: {
+    ...Typography.bodyBold,
+    color: Colors.white,
+  },
+  secondaryActionBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.sm,
+    backgroundColor: Colors.white,
+    padding: Spacing.md,
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
+    borderColor: Colors.gray200,
+  },
+  secondaryActionText: {
+    ...Typography.bodyBold,
+    color: Colors.gray700,
+    flex: 1,
+  },
+  challengeTypeCard: {
+    marginTop: Spacing.sm,
+    padding: 0,
+  },
+  challengeTypeTitle: {
+    ...Typography.bodyBold,
+    color: Colors.gray900,
+    padding: Spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.gray200,
+  },
+  challengeTypeBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.sm,
+    padding: Spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.gray100,
+  },
+  challengeTypeBtnText: {
+    ...Typography.body,
+    color: Colors.gray900,
+    flex: 1,
+  },
+  challengeTypeCancelBtn: {
+    padding: Spacing.md,
+    alignItems: "center",
+  },
+  challengeTypeCancelText: {
+    ...Typography.bodyBold,
+    color: Colors.gray500,
+  },
+  ratingCard: {
+    marginTop: Spacing.md,
+  },
+  ratingTitle: {
+    ...Typography.bodyBold,
+    color: Colors.gray900,
+    marginBottom: Spacing.md,
+  },
+  ratingGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: Spacing.sm,
+    marginBottom: Spacing.md,
+  },
+  ratingBtn: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: Colors.gray100,
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 2,
+    borderColor: Colors.gray200,
+  },
+  ratingBtnSelected: {
+    backgroundColor: Colors.primary,
+    borderColor: Colors.primary,
+  },
+  ratingBtnText: {
+    ...Typography.bodyBold,
+    color: Colors.gray700,
+  },
+  ratingBtnTextSelected: {
+    color: Colors.white,
+  },
+  ratingActions: {
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    gap: Spacing.md,
+    marginTop: Spacing.md,
+    paddingTop: Spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: Colors.gray200,
+  },
+  ratingCancel: {
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+  },
+  ratingCancelText: {
+    ...Typography.bodyBold,
+    color: Colors.gray600,
+  },
+  ratingSubmit: {
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.lg,
+    backgroundColor: Colors.primary,
+    borderRadius: BorderRadius.md,
+  },
+  ratingSubmitText: {
+    ...Typography.bodyBold,
+    color: Colors.white,
+  },
+  empty: {
+    ...Typography.body,
+    color: Colors.gray500,
+  },
+
+  // Chat Styles
+  chatContainer: { flex: 1, backgroundColor: "#F0F2F5" },
   chatList: { flex: 1 },
-  chatListContent: { padding: Spacing.md },
-  chatBubble: { maxWidth: '80%', padding: Spacing.sm, borderRadius: BorderRadius.md, marginBottom: Spacing.sm, alignSelf: 'flex-start', backgroundColor: Colors.gray200 },
-  chatBubbleMe: { alignSelf: 'flex-end', backgroundColor: Colors.primary },
-  chatBubbleText: { ...Typography.body, color: Colors.gray900 },
-  chatBubbleTextMe: { color: Colors.white },
-  chatInputRow: { flexDirection: 'row', alignItems: 'flex-end', padding: Spacing.sm, backgroundColor: Colors.white, borderTopWidth: 1, borderTopColor: Colors.gray200 },
-  chatInput: { flex: 1, borderWidth: 1, borderColor: Colors.gray200, borderRadius: BorderRadius.md, paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm, marginRight: Spacing.sm, maxHeight: 100, ...Typography.body },
-  chatSend: { width: 44, height: 44, borderRadius: 22, backgroundColor: Colors.primary, justifyContent: 'center', alignItems: 'center' },
-  chatSendDisabled: { opacity: 0.5 },
+  chatListContent: {
+    padding: Spacing.md,
+    paddingBottom: Spacing.lg,
+  },
+  messageBubble: {
+    maxWidth: "75%",
+    padding: Spacing.md,
+    borderRadius: BorderRadius.lg,
+    marginBottom: Spacing.sm,
+    alignSelf: "flex-start",
+  },
+  messageBubbleMe: {
+    alignSelf: "flex-end",
+    backgroundColor: Colors.primary,
+    borderBottomRightRadius: 4,
+  },
+  messageBubbleThem: {
+    backgroundColor: Colors.white,
+    borderBottomLeftRadius: 4,
+    ...Shadows.small,
+  },
+  senderName: {
+    ...Typography.tiny,
+    color: Colors.gray500,
+    marginBottom: 4,
+    fontWeight: "600",
+  },
+  messageText: {
+    ...Typography.body,
+    color: Colors.gray900,
+    lineHeight: 20,
+  },
+  messageTextMe: {
+    color: Colors.white,
+  },
+  messageTime: {
+    ...Typography.tiny,
+    color: Colors.gray400,
+    marginTop: 4,
+    alignSelf: "flex-end",
+  },
+  messageTimeMe: {
+    color: "rgba(255, 255, 255, 0.8)",
+  },
+  chatInputContainer: {
+    backgroundColor: Colors.white,
+    borderTopWidth: 1,
+    borderTopColor: Colors.gray200,
+    padding: Spacing.sm,
+  },
+  chatInputWrapper: {
+    flexDirection: "row",
+    alignItems: "flex-end",
+    gap: Spacing.sm,
+  },
+  chatInput: {
+    flex: 1,
+    backgroundColor: Colors.gray50,
+    borderRadius: BorderRadius.full,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    maxHeight: 100,
+    ...Typography.body,
+    color: Colors.gray900,
+  },
+  sendBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    overflow: "hidden",
+  },
+  sendBtnGradient: {
+    width: 44,
+    height: 44,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  sendBtnDisabled: {
+    opacity: 0.5,
+  },
 });

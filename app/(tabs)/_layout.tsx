@@ -5,7 +5,7 @@ export default function TabLayout() {
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: "#007AFF",
+        tabBarActiveTintColor: "#10b981",
         headerShown: false,
       }}
     >
@@ -39,7 +39,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="reserve"
         options={{
-          title: "Reserveren",
+          title: "Reservations",
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="calendar" size={size} color={color} />
           ),
@@ -48,7 +48,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="notifications"
         options={{
-          title: "Meldingen",
+          title: "Notifications",
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="notifications" size={size} color={color} />
           ),

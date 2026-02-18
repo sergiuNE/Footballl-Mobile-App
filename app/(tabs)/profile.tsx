@@ -1,22 +1,35 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
-import { useState, useEffect } from 'react';
-import { signOut } from 'firebase/auth';
-import { doc, getDoc, updateDoc } from 'firebase/firestore';
-import { auth, db } from '../../config/firebase';
-import { router } from 'expo-router';
-import Card from '../../components/Card';
-import Button from '../../components/Button';
-import Input from '../../components/Input';
-import PositionSelector from '../../components/PositionSelector';
-import { Colors, Spacing, Typography, BorderRadius, Shadows } from '../../constants/theme';
-import { LinearGradient } from 'expo-linear-gradient';
-import { User } from '../../types';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  Alert,
+} from "react-native";
+import { useState, useEffect } from "react";
+import { signOut } from "firebase/auth";
+import { doc, getDoc, updateDoc } from "firebase/firestore";
+import { auth, db } from "../../config/firebase";
+import { router } from "expo-router";
+import Card from "../../components/Card";
+import Button from "../../components/Button";
+import Input from "../../components/Input";
+import PositionSelector from "../../components/PositionSelector";
+import {
+  Colors,
+  Spacing,
+  Typography,
+  BorderRadius,
+  Shadows,
+} from "../../constants/theme";
+import { LinearGradient } from "expo-linear-gradient";
+import { User } from "../../types";
 
 export default function Profile() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
-  const [name, setName] = useState('');
+  const [name, setName] = useState("");
   const [selectedPositions, setSelectedPositions] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
 
@@ -28,7 +41,7 @@ export default function Profile() {
     if (!auth.currentUser) return;
 
     try {
-      const userDoc = await getDoc(doc(db, 'users', auth.currentUser.uid));
+      const userDoc = await getDoc(doc(db, "users", auth.currentUser.uid));
       if (userDoc.exists()) {
         const userData = { uid: userDoc.id, ...userDoc.data() } as User;
         setUser(userData);
@@ -36,7 +49,7 @@ export default function Profile() {
         setSelectedPositions(userData.positions || []);
       }
     } catch (error) {
-      console.error('Error loading user:', error);
+      console.error("Error loading user:", error);
     } finally {
       setLoading(false);
     }
@@ -44,7 +57,7 @@ export default function Profile() {
 
   const handleTogglePosition = (position: string) => {
     if (selectedPositions.includes(position)) {
-      setSelectedPositions(selectedPositions.filter(p => p !== position));
+      setSelectedPositions(selectedPositions.filter((p) => p !== position));
     } else {
       setSelectedPositions([...selectedPositions, position]);
     }
@@ -52,22 +65,22 @@ export default function Profile() {
 
   const handleSave = async () => {
     if (!auth.currentUser || !name.trim()) {
-      Alert.alert('Error', 'Name cannot be empty');
+      Alert.alert("Error", "Name cannot be empty");
       return;
     }
 
     setSaving(true);
     try {
-      await updateDoc(doc(db, 'users', auth.currentUser.uid), {
+      await updateDoc(doc(db, "users", auth.currentUser.uid), {
         name: name.trim(),
         positions: selectedPositions,
       });
 
       await loadUserData();
       setEditing(false);
-      Alert.alert('Success', 'Profile updated!');
+      Alert.alert("Success", "Profile updated!");
     } catch (error) {
-      Alert.alert('Error', 'Could not save profile');
+      Alert.alert("Error", "Could not save profile");
       console.error(error);
     } finally {
       setSaving(false);
@@ -75,21 +88,17 @@ export default function Profile() {
   };
 
   const handleLogout = async () => {
-    Alert.alert(
-      'Log out',
-      'Are you sure you want to log out?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Log out',
-          style: 'destructive',
-          onPress: async () => {
-            await signOut(auth);
-            router.replace('/(auth)/login');
-          },
+    Alert.alert("Log out", "Are you sure you want to log out?", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Log out",
+        style: "destructive",
+        onPress: async () => {
+          await signOut(auth);
+          router.replace("/(auth)/login");
         },
-      ]
-    );
+      },
+    ]);
   };
 
   if (loading) {
@@ -224,7 +233,9 @@ export default function Profile() {
                     </View>
                   ))
                 ) : (
-                  <Text style={styles.infoValueGray}>No positions selected</Text>
+                  <Text style={styles.infoValueGray}>
+                    No positions selected
+                  </Text>
                 )}
               </View>
             </View>
@@ -237,6 +248,8 @@ export default function Profile() {
               onPress={handleLogout}
               variant="outline"
               fullWidth
+              style={{ borderColor: "red" }}
+              textStyle={{ color: "red" }}
             />
           </View>
         </>
@@ -255,8 +268,8 @@ const styles = StyleSheet.create({
   },
   loadingContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     backgroundColor: Colors.background,
   },
   loadingText: {
@@ -264,7 +277,7 @@ const styles = StyleSheet.create({
     color: Colors.gray500,
   },
   header: {
-    alignItems: 'center',
+    alignItems: "center",
     paddingVertical: Spacing.xxl,
     paddingHorizontal: Spacing.lg,
     borderRadius: BorderRadius.xl,
@@ -278,15 +291,15 @@ const styles = StyleSheet.create({
     height: 100,
     borderRadius: 50,
     backgroundColor: Colors.white,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     borderWidth: 4,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
+    borderColor: "rgba(255, 255, 255, 0.3)",
     ...Shadows.large,
   },
   avatarText: {
     fontSize: 40,
-    fontWeight: '700',
+    fontWeight: "700",
     color: Colors.primary,
   },
   headerName: {
@@ -296,10 +309,10 @@ const styles = StyleSheet.create({
   },
   headerEmail: {
     ...Typography.body,
-    color: 'rgba(255, 255, 255, 0.8)',
+    color: "rgba(255, 255, 255, 0.8)",
   },
   statsContainer: {
-    flexDirection: 'row',
+    flexDirection: "row",
     paddingHorizontal: Spacing.lg,
     marginTop: Spacing.xxl + 20,
     marginBottom: Spacing.lg,
@@ -307,7 +320,7 @@ const styles = StyleSheet.create({
   },
   statCard: {
     flex: 1,
-    alignItems: 'center',
+    alignItems: "center",
     paddingVertical: Spacing.md,
   },
   statValue: {
@@ -318,7 +331,7 @@ const styles = StyleSheet.create({
   statLabel: {
     ...Typography.small,
     color: Colors.gray600,
-    textAlign: 'center',
+    textAlign: "center",
   },
   sectionTitle: {
     ...Typography.h3,
@@ -326,9 +339,9 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.md,
   },
   infoHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     marginBottom: Spacing.md,
   },
   editButton: {
@@ -340,7 +353,7 @@ const styles = StyleSheet.create({
   editButtonText: {
     ...Typography.small,
     color: Colors.white,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   infoRow: {
     paddingVertical: Spacing.sm,
@@ -359,11 +372,11 @@ const styles = StyleSheet.create({
   infoValueGray: {
     ...Typography.body,
     color: Colors.gray400,
-    fontStyle: 'italic',
+    fontStyle: "italic",
   },
   positionBadges: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+    flexDirection: "row",
+    flexWrap: "wrap",
     gap: Spacing.xs,
     marginTop: 4,
   },
@@ -376,7 +389,7 @@ const styles = StyleSheet.create({
   positionBadgeText: {
     ...Typography.small,
     color: Colors.white,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   editActions: {
     gap: Spacing.md,

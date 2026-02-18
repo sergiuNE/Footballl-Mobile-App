@@ -7,20 +7,41 @@ import {
   ActivityIndicator,
   Alert,
   Modal,
-} from 'react-native';
-import { useLocalSearchParams, router } from 'expo-router';
-import { useEffect, useState } from 'react';
-import { doc, getDoc, updateDoc, arrayUnion, arrayRemove } from 'firebase/firestore';
-import { auth, db } from '../../config/firebase';
-import type { Match, PlayerInMatch } from '../../types/match';
-import { FOOTBALL_POSITIONS } from '../../constants/positions';
-import { Ionicons } from '@expo/vector-icons';
-import { SafeAreaView } from 'react-native-safe-area-context';
+} from "react-native";
+import { useLocalSearchParams, router } from "expo-router";
+import { useEffect, useState } from "react";
+import {
+  doc,
+  getDoc,
+  updateDoc,
+  arrayUnion,
+  arrayRemove,
+} from "firebase/firestore";
+import { auth, db } from "../../config/firebase";
+import type { Match, PlayerInMatch } from "../../types/match";
+import { FOOTBALL_POSITIONS } from "../../constants/positions";
+import { Ionicons } from "@expo/vector-icons";
+import { SafeAreaView } from "react-native-safe-area-context";
+import {
+  Colors,
+  Spacing,
+  Typography,
+  BorderRadius,
+  Shadows,
+} from "../../constants/theme";
+import { LinearGradient } from "expo-linear-gradient";
+import Card from "../../components/Card";
 
 function formatDate(dateVal: { seconds: number } | Date): string {
-  if (!dateVal) return '–';
-  const d = 'seconds' in dateVal ? new Date(dateVal.seconds * 1000) : new Date(dateVal);
-  return d.toLocaleDateString('nl-NL', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+  if (!dateVal) return "–";
+  const d =
+    "seconds" in dateVal ? new Date(dateVal.seconds * 1000) : new Date(dateVal);
+  return d.toLocaleDateString("en-US", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
 }
 
 export default function MatchDetailScreen() {
@@ -29,13 +50,15 @@ export default function MatchDetailScreen() {
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
   const [showPositionsModal, setShowPositionsModal] = useState(false);
+  const [showPositionPicker, setShowPositionPicker] = useState(false);
+  const [selectedPosition, setSelectedPosition] = useState("");
   const [editingPlayers, setEditingPlayers] = useState<PlayerInMatch[]>([]);
   const [savingPositions, setSavingPositions] = useState(false);
 
   const loadMatch = async () => {
     if (!id) return;
     try {
-      const ref = doc(db, 'matches', id);
+      const ref = doc(db, "matches", id);
       const snap = await getDoc(ref);
       if (!snap.exists()) {
         setMatch(null);
@@ -78,7 +101,7 @@ export default function MatchDetailScreen() {
 
   const setPlayerPosition = (userId: string, position: string) => {
     setEditingPlayers((prev) =>
-      prev.map((p) => (p.userId === userId ? { ...p, position } : p))
+      prev.map((p) => (p.userId === userId ? { ...p, position } : p)),
     );
   };
 
@@ -86,28 +109,50 @@ export default function MatchDetailScreen() {
     if (!match?.id) return;
     setSavingPositions(true);
     try {
-      await updateDoc(doc(db, 'matches', match.id), { players: editingPlayers });
+      await updateDoc(doc(db, "matches", match.id), {
+        players: editingPlayers,
+      });
       await loadMatch();
       setShowPositionsModal(false);
+      Alert.alert("Success", "Positions saved!");
     } catch {
-      Alert.alert('Fout', 'Posities konden niet worden opgeslagen.');
+      Alert.alert("Error", "Could not save positions.");
     } finally {
       setSavingPositions(false);
     }
   };
 
-  const handleJoin = async () => {
+  const handleJoin = () => {
+    setShowPositionPicker(true);
+  };
+
+  const confirmJoin = async () => {
     if (!user || !match?.id || !canJoin) return;
-    const userDoc = await getDoc(doc(db, 'users', user.uid));
-    const userName = (userDoc.data()?.name as string) || user.email || 'Speler';
+    
+    if (!selectedPosition) {
+      Alert.alert("Error", "Please select a position first");
+      return;
+    }
+
+    const userDoc = await getDoc(doc(db, "users", user.uid));
+    const userName = (userDoc.data()?.name as string) || user.email || "Player";
+    
     setActionLoading(true);
     try {
-      await updateDoc(doc(db, 'matches', match.id), {
-        players: arrayUnion({ userId: user.uid, userName }),
+      await updateDoc(doc(db, "matches", match.id), {
+        players: arrayUnion({ 
+          userId: user.uid, 
+          userName,
+          position: selectedPosition 
+        }),
       });
       await loadMatch();
+      setShowPositionPicker(false);
+      setSelectedPosition("");
+      Alert.alert("Success", "You joined the match!");
+      router.push("/(tabs)/home");
     } catch (e) {
-      Alert.alert('Fout', 'Kon niet deelnemen. Probeer het later opnieuw.');
+      Alert.alert("Error", "Could not join. Please try again.");
     } finally {
       setActionLoading(false);
     }
@@ -117,167 +162,346 @@ export default function MatchDetailScreen() {
     if (!user || !match?.id || !isJoined) return;
     const entry = players.find((p) => p.userId === user.uid);
     if (!entry) return;
-    Alert.alert(
-      'Wedstrijd verlaten',
-      'Weet je zeker dat je wilt afmelden?',
-      [
-        { text: 'Annuleren', style: 'cancel' },
-        {
-          text: 'Verlaten',
-          style: 'destructive',
-          onPress: async () => {
-            setActionLoading(true);
-            try {
-              await updateDoc(doc(db, 'matches', match.id), {
-                players: arrayRemove(entry),
-              });
-              await loadMatch();
-            } catch {
-              Alert.alert('Fout', 'Kon niet afmelden. Probeer het later opnieuw.');
-            } finally {
-              setActionLoading(false);
-            }
-          },
+    Alert.alert("Leave Match", "Are you sure you want to leave this match?", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Leave",
+        style: "destructive",
+        onPress: async () => {
+          setActionLoading(true);
+          try {
+            await updateDoc(doc(db, "matches", match.id), {
+              players: arrayRemove(entry),
+            });
+            await loadMatch();
+          } catch {
+            Alert.alert("Error", "Could not leave. Please try again.");
+          } finally {
+            setActionLoading(false);
+          }
         },
-      ]
-    );
+      },
+    ]);
   };
 
   if (loading) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator size="large" />
+        <ActivityIndicator size="large" color={Colors.primary} />
       </View>
     );
   }
 
   if (!match) {
     return (
-      <SafeAreaView style={styles.container} edges={['top']}>
+      <SafeAreaView style={styles.container} edges={[]}>
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-            <Ionicons name="arrow-back" size={24} color="#000" />
+          <TouchableOpacity
+            onPress={() => router.back()}
+            style={styles.backBtn}
+          >
+            <Ionicons name="arrow-back" size={24} color={Colors.gray900} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Wedstrijd</Text>
+          <Text style={styles.headerTitle}>Match</Text>
         </View>
         <View style={styles.centered}>
-          <Text style={styles.empty}>Wedstrijd niet gevonden.</Text>
+          <Text style={styles.empty}>Match not found.</Text>
         </View>
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <View style={styles.header}>
+    <SafeAreaView style={styles.container} edges={[]}>
+      <LinearGradient
+        colors={[Colors.primary, Colors.primaryDark]}
+        style={styles.headerGradient}
+      >
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={24} color="#000" />
+          <Ionicons name="arrow-back" size={24} color={Colors.white} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle} numberOfLines={1}>{match.title ?? match.location}</Text>
-      </View>
-
-      <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        <View style={styles.infoCard}>
-          <View style={styles.infoRow}>
-            <Ionicons name="calendar-outline" size={20} color="#666" />
-            <Text style={styles.infoText}>{formatDate(match.date as { seconds: number })}</Text>
-          </View>
-          <View style={styles.infoRow}>
-            <Ionicons name="time-outline" size={20} color="#666" />
-            <Text style={styles.infoText}>{match.time}</Text>
-          </View>
-          <View style={styles.infoRow}>
-            <Ionicons name="location-outline" size={20} color="#666" />
-            <Text style={styles.infoText}>{match.location}</Text>
-          </View>
+        <View style={styles.headerContent}>
+          <Text style={styles.headerTitle} numberOfLines={2}>
+            {match.title ?? match.location}
+          </Text>
+          <Text style={styles.headerSubtitle}>Match Details</Text>
         </View>
+      </LinearGradient>
 
-        <View style={styles.statsCard}>
-          <Text style={styles.sectionTitle}>Resultaat & statistieken</Text>
-          <View style={styles.scoreRow}>
-            <Text style={styles.statsLabel}>Score</Text>
-            <Text style={styles.scoreValue}>
-              {match.homeScore != null && match.awayScore != null
-                ? `${match.homeScore} - ${match.awayScore}`
-                : '–'}
-            </Text>
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        <Card style={styles.infoCard}>
+          <View style={styles.infoRow}>
+            <View style={styles.infoIconContainer}>
+              <Ionicons name="calendar" size={20} color={Colors.primary} />
+            </View>
+            <View style={styles.infoTextContainer}>
+              <Text style={styles.infoLabel}>Date</Text>
+              <Text style={styles.infoValue}>
+                {formatDate(match.date as { seconds: number })}
+              </Text>
+            </View>
           </View>
-          <View style={styles.scoreRow}>
-            <Text style={styles.statsLabel}>Schoten op doel</Text>
-            <Text style={styles.scoreValue}>
-              {match.shotsOnTargetHome != null && match.shotsOnTargetAway != null
-                ? `${match.shotsOnTargetHome} - ${match.shotsOnTargetAway}`
-                : '–'}
-            </Text>
-          </View>
-        </View>
 
-        <View style={styles.lineupSection}>
-          <View style={styles.lineupSectionHeader}>
-            <Text style={styles.sectionTitle}>Opstelling</Text>
+          <View style={styles.infoRow}>
+            <View style={styles.infoIconContainer}>
+              <Ionicons name="time" size={20} color={Colors.primary} />
+            </View>
+            <View style={styles.infoTextContainer}>
+              <Text style={styles.infoLabel}>Time</Text>
+              <Text style={styles.infoValue}>{match.time}</Text>
+            </View>
+          </View>
+
+          <View style={styles.infoRow}>
+            <View style={styles.infoIconContainer}>
+              <Ionicons name="location" size={20} color={Colors.primary} />
+            </View>
+            <View style={styles.infoTextContainer}>
+              <Text style={styles.infoLabel}>Location</Text>
+              <Text style={styles.infoValue}>{match.location}</Text>
+            </View>
+          </View>
+        </Card>
+
+        <Card style={styles.statsCard}>
+          <Text style={styles.sectionTitle}>Match Statistics</Text>
+          <View style={styles.statsGrid}>
+            <View style={styles.statBox}>
+              <Text style={styles.statLabel}>Score</Text>
+              <Text style={styles.statValue}>
+                {match.homeScore != null && match.awayScore != null
+                  ? `${match.homeScore} - ${match.awayScore}`
+                  : "–"}
+              </Text>
+            </View>
+            <View style={styles.statDivider} />
+            <View style={styles.statBox}>
+              <Text style={styles.statLabel}>Shots on Target</Text>
+              <Text style={styles.statValue}>
+                {match.shotsOnTargetHome != null &&
+                match.shotsOnTargetAway != null
+                  ? `${match.shotsOnTargetHome} - ${match.shotsOnTargetAway}`
+                  : "–"}
+              </Text>
+            </View>
+          </View>
+        </Card>
+
+        <Card style={styles.lineupCard}>
+          <View style={styles.lineupHeader}>
+            <View>
+              <Text style={styles.sectionTitle}>Squad</Text>
+              <Text style={styles.playersCount}>
+                {players.length} / {match.maxPlayers} players
+              </Text>
+            </View>
             {isCreator && players.length > 0 && (
-              <TouchableOpacity style={styles.positionsBtn} onPress={openPositionsModal}>
-                <Ionicons name="create-outline" size={18} color="#007AFF" />
-                <Text style={styles.positionsBtnText}>Posities beheren</Text>
+              <TouchableOpacity
+                style={styles.manageBtn}
+                onPress={openPositionsModal}
+              >
+                <Ionicons
+                  name="create-outline"
+                  size={18}
+                  color={Colors.white}
+                />
+                <Text style={styles.manageBtnText}>Manage</Text>
               </TouchableOpacity>
             )}
           </View>
-          <Text style={styles.playersCount}>
-            {players.length} / {match.maxPlayers} spelers
-          </Text>
+
           {players.length === 0 ? (
-            <Text style={styles.noPlayers}>Nog geen spelers ingeschreven.</Text>
+            <View style={styles.emptyPlayers}>
+              <Ionicons
+                name="people-outline"
+                size={48}
+                color={Colors.gray300}
+              />
+              <Text style={styles.noPlayers}>No players yet</Text>
+              <Text style={styles.noPlayersHint}>Be the first to join!</Text>
+            </View>
           ) : (
             <View style={styles.lineupList}>
               {players.map((p: PlayerInMatch, index: number) => (
                 <TouchableOpacity
                   key={p.userId}
-                  style={styles.lineupRow}
+                  style={styles.playerRow}
                   onPress={() => router.push(`/user/${p.userId}` as any)}
                   activeOpacity={0.7}
                 >
-                  <View style={styles.jersey}>
-                    <Text style={styles.jerseyNumber}>{index + 1}</Text>
+                  <View style={styles.playerLeft}>
+                    <View style={styles.jersey}>
+                      <Text style={styles.jerseyNumber}>{index + 1}</Text>
+                    </View>
+                    <Text style={styles.playerName}>{p.userName}</Text>
                   </View>
-                  <Text style={styles.playerName}>{p.userName}</Text>
-                  {p.position ? (
-                    <Text style={styles.position}>{p.position}</Text>
-                  ) : null}
-                  <Ionicons name="chevron-forward" size={18} color="#999" />
+                  <View style={styles.playerRight}>
+                    {p.position && (
+                      <View style={styles.positionBadge}>
+                        <Text style={styles.positionText}>{p.position}</Text>
+                      </View>
+                    )}
+                    <Ionicons
+                      name="chevron-forward"
+                      size={18}
+                      color={Colors.gray400}
+                    />
+                  </View>
                 </TouchableOpacity>
               ))}
             </View>
           )}
-        </View>
+        </Card>
 
+        {/* Position Picker Modal (for joining) */}
+        <Modal visible={showPositionPicker} transparent animationType="slide">
+          <TouchableOpacity
+            style={styles.modalOverlay}
+            activeOpacity={1}
+            onPress={() => {
+              setShowPositionPicker(false);
+              setSelectedPosition("");
+            }}
+          />
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Choose Your Position</Text>
+              <TouchableOpacity
+                onPress={() => {
+                  setShowPositionPicker(false);
+                  setSelectedPosition("");
+                }}
+              >
+                <Ionicons name="close" size={24} color={Colors.gray600} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView
+              style={styles.modalScroll}
+              contentContainerStyle={styles.modalScrollContent}
+            >
+              <View style={styles.positionChips}>
+                {FOOTBALL_POSITIONS.map((pos) => (
+                  <TouchableOpacity
+                    key={pos}
+                    style={[
+                      styles.positionChip,
+                      selectedPosition === pos && styles.positionChipSelected,
+                    ]}
+                    onPress={() => setSelectedPosition(pos)}
+                  >
+                    <Text
+                      style={[
+                        styles.positionChipText,
+                        selectedPosition === pos &&
+                          styles.positionChipTextSelected,
+                      ]}
+                    >
+                      {pos}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </ScrollView>
+
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                style={styles.modalCancel}
+                onPress={() => {
+                  setShowPositionPicker(false);
+                  setSelectedPosition("");
+                }}
+              >
+                <Text style={styles.modalCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.modalSave,
+                  (!selectedPosition || actionLoading) && styles.btnDisabled,
+                ]}
+                onPress={confirmJoin}
+                disabled={!selectedPosition || actionLoading}
+              >
+                <Text style={styles.modalSaveText}>
+                  {actionLoading ? "Joining..." : "Confirm"}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+
+        {/* Manage Positions Modal */}
         <Modal visible={showPositionsModal} transparent animationType="slide">
-          <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setShowPositionsModal(false)} />
-          <View style={styles.positionsModalContent}>
-            <Text style={styles.positionsModalTitle}>Posities beheren</Text>
-            <ScrollView style={styles.positionsModalScroll}>
+          <TouchableOpacity
+            style={styles.modalOverlay}
+            activeOpacity={1}
+            onPress={() => setShowPositionsModal(false)}
+          />
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Manage Positions</Text>
+              <TouchableOpacity onPress={() => setShowPositionsModal(false)}>
+                <Ionicons name="close" size={24} color={Colors.gray600} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView
+              style={styles.modalScroll}
+              contentContainerStyle={styles.modalScrollContent}
+            >
               {editingPlayers.map((p) => (
                 <View key={p.userId} style={styles.positionRow}>
-                  <Text style={styles.positionRowName} numberOfLines={1}>{p.userName}</Text>
+                  <Text style={styles.positionRowName}>{p.userName}</Text>
                   <View style={styles.positionChips}>
                     {FOOTBALL_POSITIONS.map((pos) => (
                       <TouchableOpacity
                         key={pos}
-                        style={[styles.positionChip, p.position === pos && styles.positionChipSelected]}
-                        onPress={() => setPlayerPosition(p.userId, p.position === pos ? '' : pos)}
+                        style={[
+                          styles.positionChip,
+                          p.position === pos && styles.positionChipSelected,
+                        ]}
+                        onPress={() =>
+                          setPlayerPosition(
+                            p.userId,
+                            p.position === pos ? "" : pos,
+                          )
+                        }
                       >
-                        <Text style={[styles.positionChipText, p.position === pos && styles.positionChipTextSelected]}>{pos}</Text>
+                        <Text
+                          style={[
+                            styles.positionChipText,
+                            p.position === pos &&
+                              styles.positionChipTextSelected,
+                          ]}
+                        >
+                          {pos}
+                        </Text>
                       </TouchableOpacity>
                     ))}
                   </View>
                 </View>
               ))}
             </ScrollView>
-            <View style={styles.positionsModalActions}>
-              <TouchableOpacity style={styles.positionsCancel} onPress={() => setShowPositionsModal(false)}>
-                <Text style={styles.positionsCancelText}>Annuleren</Text>
+
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                style={styles.modalCancel}
+                onPress={() => setShowPositionsModal(false)}
+              >
+                <Text style={styles.modalCancelText}>Cancel</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.positionsSave} onPress={savePositions} disabled={savingPositions}>
-                <Text style={styles.positionsSaveText}>{savingPositions ? 'Bezig...' : 'Opslaan'}</Text>
+              <TouchableOpacity
+                style={styles.modalSave}
+                onPress={savePositions}
+                disabled={savingPositions}
+              >
+                <Text style={styles.modalSaveText}>
+                  {savingPositions ? "Saving..." : "Save"}
+                </Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -287,33 +511,44 @@ export default function MatchDetailScreen() {
           <View style={styles.actions}>
             {canJoin && (
               <TouchableOpacity
-                style={[styles.primaryButton, actionLoading && styles.buttonDisabled]}
+                style={[styles.joinBtn, actionLoading && styles.btnDisabled]}
                 onPress={handleJoin}
                 disabled={actionLoading}
               >
-                <Ionicons name="person-add" size={20} color="#fff" />
-                <Text style={styles.primaryButtonText}>
-                  {actionLoading ? 'Bezig...' : 'Deelnemen'}
-                </Text>
+                <LinearGradient
+                  colors={[Colors.success, "#059669"]}
+                  style={styles.btnGradient}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                >
+                  <Ionicons name="person-add" size={20} color={Colors.white} />
+                  <Text style={styles.joinBtnText}>Join Match</Text>
+                </LinearGradient>
               </TouchableOpacity>
             )}
+
             {isJoined && (
               <TouchableOpacity
-                style={[styles.leaveButton, actionLoading && styles.buttonDisabled]}
+                style={[styles.leaveBtn, actionLoading && styles.btnDisabled]}
                 onPress={handleLeave}
                 disabled={actionLoading}
               >
-                <Ionicons name="person-remove" size={20} color="#ff3b30" />
-                <Text style={styles.leaveButtonText}>
-                  {actionLoading ? 'Bezig...' : 'Afmelden'}
+                <Ionicons name="person-remove" size={20} color={Colors.error} />
+                <Text style={styles.leaveBtnText}>
+                  {actionLoading ? "Leaving..." : "Leave Match"}
                 </Text>
               </TouchableOpacity>
             )}
+
             {!user && (
-              <Text style={styles.loginHint}>Log in om deel te nemen.</Text>
+              <Text style={styles.loginHint}>Log in to join this match.</Text>
             )}
+
             {isFull && !isJoined && (
-              <Text style={styles.fullHint}>Deze wedstrijd is vol.</Text>
+              <View style={styles.fullBanner}>
+                <Ionicons name="lock-closed" size={20} color={Colors.white} />
+                <Text style={styles.fullText}>This match is full</Text>
+              </View>
             )}
           </View>
         )}
@@ -323,295 +558,328 @@ export default function MatchDetailScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f5f5f5',
-  },
-  centered: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
+  container: { flex: 1, backgroundColor: Colors.background },
+  centered: { flex: 1, justifyContent: "center", alignItems: "center" },
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 8,
-    paddingVertical: 12,
-    backgroundColor: '#fff',
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.md,
+    backgroundColor: Colors.white,
     borderBottomWidth: 1,
-    borderBottomColor: '#eee',
+    borderBottomColor: Colors.gray200,
+  },
+  headerGradient: {
+    paddingHorizontal: Spacing.lg,
+    paddingTop: Spacing.md,
+    paddingBottom: Spacing.xl,
+    flexDirection: "row",
+    alignItems: "center",
   },
   backBtn: {
-    padding: 8,
-    marginRight: 8,
+    padding: Spacing.sm,
+    marginRight: Spacing.sm,
   },
+  headerContent: { flex: 1 },
   headerTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    flex: 1,
+    ...Typography.h2,
+    color: Colors.white,
+    marginBottom: 4,
+  },
+  headerSubtitle: {
+    ...Typography.small,
+    color: "rgba(255, 255, 255, 0.9)",
   },
   scroll: { flex: 1 },
   scrollContent: {
-    padding: 16,
-    paddingBottom: 40,
+    padding: Spacing.lg,
+    paddingBottom: Spacing.xxl,
   },
-  infoCard: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06,
-    shadowRadius: 4,
-    elevation: 2,
-  },
+  infoCard: { marginBottom: Spacing.md },
   infoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    marginBottom: 10,
-  },
-  infoText: {
-    fontSize: 15,
-    color: '#333',
-    flex: 1,
-  },
-  statsCard: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  scoreRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: Spacing.sm,
     borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
+    borderBottomColor: Colors.gray100,
   },
-  statsLabel: {
-    fontSize: 15,
-    color: '#666',
+  infoIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: Colors.gray50,
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: Spacing.md,
   },
-  scoreValue: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#333',
+  infoTextContainer: { flex: 1 },
+  infoLabel: {
+    ...Typography.small,
+    color: Colors.gray500,
+    marginBottom: 2,
   },
-  lineupSection: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06,
-    shadowRadius: 4,
-    elevation: 2,
+  infoValue: {
+    ...Typography.bodyBold,
+    color: Colors.gray900,
   },
+  statsCard: { marginBottom: Spacing.md },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
+    ...Typography.h3,
+    color: Colors.gray900,
+    marginBottom: Spacing.md,
+  },
+  statsGrid: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  statBox: {
+    flex: 1,
+    alignItems: "center",
+  },
+  statDivider: {
+    width: 1,
+    height: 40,
+    backgroundColor: Colors.gray200,
+  },
+  statLabel: {
+    ...Typography.small,
+    color: Colors.gray500,
     marginBottom: 4,
+  },
+  statValue: {
+    ...Typography.h2,
+    color: Colors.primary,
+    fontWeight: "700",
+  },
+  lineupCard: { marginBottom: Spacing.md },
+  lineupHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: Spacing.md,
   },
   playersCount: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 12,
+    ...Typography.small,
+    color: Colors.gray500,
+    marginTop: 2,
+  },
+  manageBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: Colors.primary,
+    paddingVertical: Spacing.xs,
+    paddingHorizontal: Spacing.md,
+    borderRadius: BorderRadius.md,
+  },
+  manageBtnText: {
+    ...Typography.small,
+    color: Colors.white,
+    fontWeight: "600",
+  },
+  emptyPlayers: {
+    alignItems: "center",
+    paddingVertical: Spacing.xxl,
   },
   noPlayers: {
-    fontSize: 14,
-    color: '#999',
-    fontStyle: 'italic',
+    ...Typography.bodyBold,
+    color: Colors.gray600,
+    marginTop: Spacing.md,
   },
-  lineupSectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 4,
+  noPlayersHint: {
+    ...Typography.small,
+    color: Colors.gray400,
+    marginTop: 4,
   },
-  positionsBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
+  lineupList: { gap: 0 },
+  playerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: Spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.gray100,
+  },
+  playerLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    flex: 1,
+  },
+  jersey: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: Colors.primary,
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: Spacing.md,
+  },
+  jerseyNumber: {
+    ...Typography.bodyBold,
+    color: Colors.white,
+  },
+  playerName: {
+    ...Typography.body,
+    color: Colors.gray900,
+    fontWeight: "600",
+    flex: 1,
+  },
+  playerRight: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.sm,
+  },
+  positionBadge: {
+    backgroundColor: Colors.gray100,
     paddingVertical: 4,
-    paddingHorizontal: 8,
+    paddingHorizontal: Spacing.sm,
+    borderRadius: BorderRadius.sm,
   },
-  positionsBtnText: {
-    fontSize: 14,
-    color: '#007AFF',
-    fontWeight: '600',
+  positionText: {
+    ...Typography.tiny,
+    color: Colors.gray700,
+    fontWeight: "600",
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.4)',
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
   },
-  positionsModalContent: {
-    backgroundColor: '#fff',
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
-    maxHeight: '80%',
-    paddingBottom: 24,
+  modalContent: {
+    backgroundColor: Colors.white,
+    borderTopLeftRadius: BorderRadius.xl,
+    borderTopRightRadius: BorderRadius.xl,
+    maxHeight: "80%",
   },
-  positionsModalTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    padding: 16,
+  modalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: Spacing.lg,
     borderBottomWidth: 1,
-    borderBottomColor: '#eee',
+    borderBottomColor: Colors.gray200,
   },
-  positionsModalScroll: {
-    maxHeight: 400,
-    padding: 16,
+  modalTitle: {
+    ...Typography.h3,
+    color: Colors.gray900,
   },
+  modalScroll: { maxHeight: 400 },
+  modalScrollContent: { padding: Spacing.lg },
   positionRow: {
-    marginBottom: 16,
+    marginBottom: Spacing.lg,
   },
   positionRowName: {
-    fontSize: 15,
-    fontWeight: '600',
-    marginBottom: 8,
-    color: '#333',
+    ...Typography.bodyBold,
+    color: Colors.gray900,
+    marginBottom: Spacing.sm,
   },
   positionChips: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: Spacing.sm,
   },
   positionChip: {
     paddingVertical: 6,
     paddingHorizontal: 12,
-    borderRadius: 8,
-    backgroundColor: '#f0f0f0',
+    borderRadius: BorderRadius.sm,
+    backgroundColor: Colors.gray100,
+    borderWidth: 1,
+    borderColor: Colors.gray200,
   },
   positionChipSelected: {
-    backgroundColor: '#007AFF',
+    backgroundColor: Colors.primary,
+    borderColor: Colors.primary,
   },
   positionChipText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#666',
+    ...Typography.small,
+    color: Colors.gray700,
+    fontWeight: "600",
   },
   positionChipTextSelected: {
-    color: '#fff',
+    color: Colors.white,
   },
-  positionsModalActions: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    gap: 12,
-    paddingHorizontal: 16,
-    paddingTop: 16,
+  modalActions: {
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    gap: Spacing.md,
+    padding: Spacing.lg,
     borderTopWidth: 1,
-    borderTopColor: '#eee',
+    borderTopColor: Colors.gray200,
   },
-  positionsCancel: {
-    paddingVertical: 10,
-    paddingHorizontal: 16,
+  modalCancel: {
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.md,
   },
-  positionsCancelText: {
-    fontSize: 16,
-    color: '#666',
+  modalCancelText: {
+    ...Typography.bodyBold,
+    color: Colors.gray600,
   },
-  positionsSave: {
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    backgroundColor: '#34C759',
-    borderRadius: 10,
+  modalSave: {
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.lg,
+    backgroundColor: Colors.primary,
+    borderRadius: BorderRadius.md,
   },
-  positionsSaveText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#fff',
-  },
-  lineupList: {
-    gap: 10,
-  },
-  lineupRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
-  },
-  jersey: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#007AFF',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  jerseyNumber: {
-    color: '#fff',
-    fontWeight: 'bold',
-    fontSize: 14,
-  },
-  playerName: {
-    fontSize: 16,
-    fontWeight: '500',
-    flex: 1,
-  },
-  position: {
-    fontSize: 13,
-    color: '#666',
+  modalSaveText: {
+    ...Typography.bodyBold,
+    color: Colors.white,
   },
   actions: {
-    gap: 12,
+    gap: Spacing.md,
   },
-  primaryButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    backgroundColor: '#34C759',
-    padding: 16,
-    borderRadius: 12,
+  joinBtn: {
+    borderRadius: BorderRadius.md,
+    overflow: "hidden",
+    ...Shadows.medium,
   },
-  primaryButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
+  btnGradient: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: Spacing.sm,
+    paddingVertical: Spacing.md,
   },
-  leaveButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    backgroundColor: '#fff',
-    padding: 16,
-    borderRadius: 12,
+  joinBtnText: {
+    ...Typography.bodyBold,
+    color: Colors.white,
+  },
+  leaveBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: Spacing.sm,
+    backgroundColor: Colors.white,
+    paddingVertical: Spacing.md,
+    borderRadius: BorderRadius.md,
     borderWidth: 2,
-    borderColor: '#ff3b30',
+    borderColor: Colors.error,
   },
-  leaveButtonText: {
-    color: '#ff3b30',
-    fontSize: 16,
-    fontWeight: '600',
+  leaveBtnText: {
+    ...Typography.bodyBold,
+    color: Colors.error,
   },
-  buttonDisabled: {
+  btnDisabled: {
     opacity: 0.6,
   },
   loginHint: {
-    textAlign: 'center',
-    color: '#666',
-    fontSize: 14,
+    ...Typography.body,
+    textAlign: "center",
+    color: Colors.gray500,
   },
-  fullHint: {
-    textAlign: 'center',
-    color: '#ff3b30',
-    fontSize: 14,
-    fontWeight: '500',
+  fullBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: Spacing.sm,
+    backgroundColor: Colors.error,
+    padding: Spacing.md,
+    borderRadius: BorderRadius.md,
+  },
+  fullText: {
+    ...Typography.bodyBold,
+    color: Colors.white,
   },
   empty: {
-    color: '#666',
-    fontSize: 16,
+    ...Typography.body,
+    color: Colors.gray500,
   },
 });

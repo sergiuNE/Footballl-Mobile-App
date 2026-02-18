@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, Alert, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, Alert, KeyboardAvoidingView, Platform, ScrollView, TouchableOpacity } from 'react-native';
 import { useState } from 'react';
 import { Link, router } from 'expo-router';
 import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
@@ -8,16 +8,35 @@ import Button from '../../components/Button';
 import Input from '../../components/Input';
 import { Colors, Spacing, Typography, BorderRadius } from '../../constants/theme';
 import { LinearGradient } from 'expo-linear-gradient';
+import { FOOTBALL_POSITIONS } from '../../constants/positions';
+import { Formation } from '../../types';
+
+const FORMATIONS: Formation[] = ['4-3-3', '4-4-2', '3-5-2', '4-2-3-1'];
 
 export default function Register() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
+  const [selectedPositions, setSelectedPositions] = useState<string[]>([]);
+  const [selectedFormation, setSelectedFormation] = useState<Formation>('4-3-3');
   const [loading, setLoading] = useState(false);
+
+  const togglePosition = (pos: string) => {
+    if (selectedPositions.includes(pos)) {
+      setSelectedPositions(selectedPositions.filter(p => p !== pos));
+    } else {
+      setSelectedPositions([...selectedPositions, pos]);
+    }
+  };
 
   const handleRegister = async () => {
     if (!email || !password || !name) {
       Alert.alert('Error', 'Fill in all fields');
+      return;
+    }
+
+    if (selectedPositions.length === 0) {
+      Alert.alert('Error', 'Select at least one position');
       return;
     }
 
@@ -30,17 +49,19 @@ export default function Register() {
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       
-      // Update displayName in Firebase Auth
       await updateProfile(userCredential.user, {
         displayName: name.trim(),
       });
       
+      // ✅ Save with AUTH UID
       await setDoc(doc(db, 'users', userCredential.user.uid), {
         name: name.trim(),
         email,
-        rating: 5,
-        positions: [],
-        preferredFormation: '4-3-3',
+        rating: 5.0,
+        positions: selectedPositions,
+        preferredFormation: selectedFormation,
+        matchesPlayed: 0,
+        goals: 0,
         createdAt: new Date(),
       });
 
@@ -53,16 +74,12 @@ export default function Register() {
   };
 
   return (
-    <LinearGradient
-      colors={[Colors.gray50, Colors.white]}
-      style={styles.gradient}
-    >
+    <LinearGradient colors={[Colors.gray50, Colors.white]} style={styles.gradient}>
       <KeyboardAvoidingView 
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.container}
       >
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-          {/* Header */}
           <View style={styles.header}>
             <View style={styles.iconContainer}>
               <Text style={styles.icon}>⚽</Text>
@@ -71,7 +88,6 @@ export default function Register() {
             <Text style={styles.subtitle}>Start playing football!</Text>
           </View>
 
-          {/* Form */}
           <View style={styles.form}>
             <Input
               label="Name"
@@ -97,6 +113,36 @@ export default function Register() {
               secureTextEntry
             />
 
+            <Text style={styles.label}>Positions *</Text>
+            <View style={styles.positionsGrid}>
+              {FOOTBALL_POSITIONS.map(pos => (
+                <TouchableOpacity
+                  key={pos}
+                  style={[styles.posChip, selectedPositions.includes(pos) && styles.posChipSelected]}
+                  onPress={() => togglePosition(pos)}
+                >
+                  <Text style={[styles.posText, selectedPositions.includes(pos) && styles.posTextSelected]}>
+                    {pos}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <Text style={styles.label}>Preferred Formation</Text>
+            <View style={styles.formationsRow}>
+              {FORMATIONS.map(f => (
+                <TouchableOpacity
+                  key={f}
+                  style={[styles.formChip, selectedFormation === f && styles.formChipSelected]}
+                  onPress={() => setSelectedFormation(f)}
+                >
+                  <Text style={[styles.formText, selectedFormation === f && styles.formTextSelected]}>
+                    {f}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
             <Button 
               title="Register"
               onPress={handleRegister}
@@ -118,12 +164,8 @@ export default function Register() {
 }
 
 const styles = StyleSheet.create({
-  gradient: {
-    flex: 1,
-  },
-  container: {
-    flex: 1,
-  },
+  gradient: { flex: 1 },
+  container: { flex: 1 },
   scrollContent: {
     flexGrow: 1,
     justifyContent: 'center',
@@ -147,9 +189,7 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 4,
   },
-  icon: {
-    fontSize: 40,
-  },
+  icon: { fontSize: 40 },
   title: {
     ...Typography.h1,
     color: Colors.gray900,
@@ -159,8 +199,64 @@ const styles = StyleSheet.create({
     ...Typography.body,
     color: Colors.gray500,
   },
-  form: {
-    width: '100%',
+  form: { width: '100%' },
+  label: {
+    ...Typography.bodyBold,
+    color: Colors.gray700,
+    marginBottom: Spacing.sm,
+    marginTop: Spacing.md,
+  },
+  positionsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.sm,
+    marginBottom: Spacing.md,
+  },
+  posChip: {
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+    borderRadius: BorderRadius.sm,
+    backgroundColor: Colors.gray100,
+    borderWidth: 1,
+    borderColor: Colors.gray200,
+  },
+  posChipSelected: {
+    backgroundColor: Colors.primary,
+    borderColor: Colors.primary,
+  },
+  posText: {
+    ...Typography.small,
+    color: Colors.gray700,
+    fontWeight: '600',
+  },
+  posTextSelected: {
+    color: Colors.white,
+  },
+  formationsRow: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
+    marginBottom: Spacing.lg,
+  },
+  formChip: {
+    flex: 1,
+    paddingVertical: Spacing.sm,
+    borderRadius: BorderRadius.sm,
+    backgroundColor: Colors.gray100,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: Colors.gray200,
+  },
+  formChipSelected: {
+    backgroundColor: Colors.primary,
+    borderColor: Colors.primary,
+  },
+  formText: {
+    ...Typography.small,
+    color: Colors.gray700,
+    fontWeight: '600',
+  },
+  formTextSelected: {
+    color: Colors.white,
   },
   linkContainer: {
     flexDirection: 'row',

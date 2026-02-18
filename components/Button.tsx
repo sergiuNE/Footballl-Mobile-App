@@ -14,6 +14,8 @@ type ButtonProps = {
   loading?: boolean;
   disabled?: boolean;
   fullWidth?: boolean;
+  style?: any;
+  textStyle?: any;
 };
 
 export default function Button({
@@ -23,13 +25,15 @@ export default function Button({
   loading = false,
   disabled = false,
   fullWidth = false,
+  style,
+  textStyle,
 }: ButtonProps) {
   if (variant === "primary") {
     return (
       <TouchableOpacity
         onPress={onPress}
         disabled={disabled || loading}
-        style={[styles.container, fullWidth && styles.fullWidth]}
+        style={[styles.container, fullWidth && styles.fullWidth, style]}
         activeOpacity={0.8}
       >
         <LinearGradient
@@ -41,7 +45,7 @@ export default function Button({
           {loading ? (
             <ActivityIndicator color={Colors.white} />
           ) : (
-            <Text style={styles.primaryText}>{title}</Text>
+            <Text style={[styles.primaryText, textStyle]}>{title}</Text>
           )}
         </LinearGradient>
       </TouchableOpacity>
@@ -57,13 +61,14 @@ export default function Button({
           styles.secondaryButton,
           fullWidth && styles.fullWidth,
           disabled && styles.disabled,
+          style,
         ]}
         activeOpacity={0.8}
       >
         {loading ? (
           <ActivityIndicator color={Colors.primary} />
         ) : (
-          <Text style={styles.secondaryText}>{title}</Text>
+          <Text style={[styles.secondaryText, textStyle]}>{title}</Text>
         )}
       </TouchableOpacity>
     );
@@ -78,13 +83,14 @@ export default function Button({
           styles.outlineButton,
           fullWidth && styles.fullWidth,
           disabled && styles.disabled,
+          style,
         ]}
         activeOpacity={0.8}
       >
         {loading ? (
           <ActivityIndicator color={Colors.primary} />
         ) : (
-          <Text style={styles.outlineText}>{title}</Text>
+          <Text style={[styles.outlineText, textStyle]}>{title}</Text>
         )}
       </TouchableOpacity>
     );
@@ -95,13 +101,13 @@ export default function Button({
     <TouchableOpacity
       onPress={onPress}
       disabled={disabled || loading}
-      style={[styles.ghostButton, fullWidth && styles.fullWidth]}
+      style={[styles.ghostButton, fullWidth && styles.fullWidth, style]}
       activeOpacity={0.6}
     >
       {loading ? (
         <ActivityIndicator color={Colors.primary} />
       ) : (
-        <Text style={styles.ghostText}>{title}</Text>
+        <Text style={[styles.ghostText, textStyle]}>{title}</Text>
       )}
     </TouchableOpacity>
   );
