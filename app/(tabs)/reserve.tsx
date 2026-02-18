@@ -21,9 +21,14 @@ type Field = { id: string; name: string; address: string };
 type Reservation = { id: string; fieldId: string; fieldName: string; date: Date; timeSlot: string };
 
 const DEFAULT_FIELDS: Field[] = [
-  { id: 'veld1', name: 'Sportpark De Bosjes', address: 'Bosjes 1, Amsterdam' },
-  { id: 'veld2', name: 'Complex Olympia', address: 'Olympiaweg 5, Rotterdam' },
-  { id: 'veld3', name: 'VV Noord Veld 1', address: 'Noordlaan 12, Utrecht' },
+  { id: 'wilrijk-pleinen', name: 'Wilrijkse pleinen', address: 'Wilrijk, Antwerpen' },
+  { id: 'deurne-park', name: 'Deurne park', address: 'Deurne, Antwerpen' },
+  { id: 'sportcomplex-middelheim', name: 'Sportcomplex Middelheim', address: 'Middelheimlaan, Antwerpen' },
+  { id: 'sportoase-borgerhout', name: 'Sportoase Borgerhout', address: 'Borgerhout, Antwerpen' },
+  { id: 'voetbalvelden-ekeren', name: 'Voetbalvelden Ekeren', address: 'Ekeren, Antwerpen' },
+  { id: 'sportpark-luchtbal', name: 'Sportpark Luchtbal', address: 'Luchtbal, Antwerpen' },
+  { id: 'complex-merksem', name: 'Complex Merksem', address: 'Merksem, Antwerpen' },
+  { id: 'sportvelden-hoboken', name: 'Sportvelden Hoboken', address: 'Hoboken, Antwerpen' },
 ];
 
 const TIME_SLOTS = ['09:00', '10:00', '11:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00'];
@@ -96,7 +101,7 @@ export default function ReserveScreen() {
         createdAt: new Date(),
       });
       await loadMyReservations();
-      Alert.alert('Gereserveerd', `${selectedField.name} op ${selectedDate.toLocaleDateString('nl-NL')} om ${selectedSlot}`);
+      Alert.alert('Gereserveerd', `${selectedField.name} op ${selectedDate.toLocaleDateString('nl-BE')} om ${selectedSlot}`);
       setSelectedSlot(null);
     } catch (e) {
       Alert.alert('Fout', 'Reserveren mislukt.');
@@ -139,7 +144,7 @@ export default function ReserveScreen() {
         <Text style={styles.sectionLabel}>Datum</Text>
         <TouchableOpacity style={styles.dateRow} onPress={() => setShowDatePicker(true)}>
           <Text style={styles.dateText}>
-            {selectedDate.toLocaleDateString('nl-NL', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+            {selectedDate.toLocaleDateString('nl-BE', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
           </Text>
           <Ionicons name="calendar-outline" size={22} color={Colors.gray600} />
         </TouchableOpacity>
@@ -193,7 +198,7 @@ export default function ReserveScreen() {
               <View key={r.id} style={styles.resCard}>
                 <Text style={styles.resTitle}>{r.fieldName}</Text>
                 <Text style={styles.resMeta}>
-                  {r.date.toLocaleDateString('nl-NL')} · {r.timeSlot}
+                  {r.date.toLocaleDateString('nl-BE')} · {r.timeSlot}
                 </Text>
               </View>
             ))}

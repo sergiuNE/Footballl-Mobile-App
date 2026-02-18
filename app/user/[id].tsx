@@ -43,6 +43,11 @@ export default function UserProfileScreen() {
   const [newMessage, setNewMessage] = useState('');
   const [sending, setSending] = useState(false);
   const [challengeSent, setChallengeSent] = useState(false);
+  const [showChallengeType, setShowChallengeType] = useState(false);
+  const challengeTypes = [
+    { id: 'penalty_shootout' as const, label: 'Penalty shootout' },
+    { id: '1v1' as const, label: '1v1' },
+  ];
 
   const currentUserId = auth.currentUser?.uid;
   const isOwnProfile = currentUserId === userId;
@@ -98,17 +103,22 @@ export default function UserProfileScreen() {
     return () => unsub();
   }, [showChat, userId, currentUserId]);
 
-  const handleChallenge = async () => {
+  const handleChallenge = async (challengeType: 'penalty_shootout' | '1v1') => {
+    setShowChallengeType(false);
     if (!currentUserId || !userId || !user) return;
     try {
+      const me = await getDoc(doc(db, 'users', currentUserId));
+      const fromUserName = me.exists() ? me.data().name : 'Iemand';
       await addDoc(collection(db, 'challenges'), {
         fromUserId: currentUserId,
+        fromUserName,
         toUserId: userId,
+        type: challengeType,
         status: 'pending',
         createdAt: new Date(),
       });
       setChallengeSent(true);
-      Alert.alert('Verzonden', 'Challenge verstuurd!');
+      Alert.alert('Verzonden', 'Challenge verstuurd! De andere persoon krijgt een melding.');
     } catch {
       Alert.alert('Fout', 'Challenge kon niet worden verstuurd.');
     }
@@ -186,7 +196,7 @@ export default function UserProfileScreen() {
         <TouchableOpacity onPress={() => (showChat ? setShowChat(false) : router.back())} style={styles.backBtn}>
           <Ionicons name="arrow-back" size={24} color={Colors.gray800} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>{showChat ? 'Chat' : user.name}</Text>
+        <Text style={styles.headerTitle}>{user.name}</Text>
       </View>
 
       {!showChat ? (
@@ -207,12 +217,30 @@ export default function UserProfileScreen() {
             <View style={styles.actions}>
               <TouchableOpacity
                 style={[styles.actionBtn, styles.actionPrimary]}
-                onPress={handleChallenge}
+                onPress={() => (challengeSent ? undefined : setShowChallengeType(true))}
                 disabled={challengeSent}
               >
                 <Ionicons name="trophy-outline" size={22} color={Colors.white} />
                 <Text style={styles.actionBtnText}>{challengeSent ? 'Challenge verzonden' : 'Uitdagen'}</Text>
               </TouchableOpacity>
+
+              {showChallengeType && (
+                <View style={styles.challengeTypeBox}>
+                  <Text style={styles.challengeTypeTitle}>Kies type uitdaging</Text>
+                  {challengeTypes.map((opt) => (
+                    <TouchableOpacity
+                      key={opt.id}
+                      style={styles.challengeTypeBtn}
+                      onPress={() => handleChallenge(opt.id)}
+                    >
+                      <Text style={styles.challengeTypeBtnText}>{opt.label}</Text>
+                    </TouchableOpacity>
+                  ))}
+                  <TouchableOpacity style={styles.challengeTypeCancel} onPress={() => setShowChallengeType(false)}>
+                    <Text style={styles.challengeTypeCancelText}>Annuleren</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
 
               <TouchableOpacity style={styles.actionBtn} onPress={() => setShowRating(true)}>
                 <Ionicons name="star-outline" size={22} color={Colors.gray700} />
@@ -315,6 +343,12 @@ const styles = StyleSheet.create({
   actionPrimary: { backgroundColor: Colors.primary, borderColor: Colors.primary },
   actionBtnText: { ...Typography.bodyBold, color: Colors.white },
   actionBtnTextSecondary: { ...Typography.bodyBold, color: Colors.gray700 },
+  challengeTypeBox: { backgroundColor: Colors.white, padding: Spacing.md, borderRadius: BorderRadius.md, marginTop: Spacing.sm, borderWidth: 1, borderColor: Colors.gray200 },
+  challengeTypeTitle: { ...Typography.bodyBold, color: Colors.gray800, marginBottom: Spacing.sm },
+  challengeTypeBtn: { paddingVertical: Spacing.sm, paddingHorizontal: Spacing.md, marginBottom: Spacing.xs },
+  challengeTypeBtnText: { ...Typography.body, color: Colors.primary, fontWeight: '600' },
+  challengeTypeCancel: { paddingVertical: Spacing.sm, marginTop: Spacing.xs },
+  challengeTypeCancelText: { ...Typography.body, color: Colors.gray500 },
   empty: { ...Typography.body, color: Colors.gray600 },
   ratingModal: { backgroundColor: Colors.white, padding: Spacing.lg, borderRadius: BorderRadius.lg, marginTop: Spacing.lg, ...Shadows.medium },
   ratingModalTitle: { ...Typography.bodyBold, marginBottom: Spacing.md },

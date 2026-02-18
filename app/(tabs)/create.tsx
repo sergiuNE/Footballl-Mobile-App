@@ -26,6 +26,21 @@ import DateTimePicker from "@react-native-community/datetimepicker";
 
 type SkillLevel = "beginner" | "intermediate" | "advanced" | "all";
 
+const MATCH_LOCATIONS = [
+  "Wilrijkse pleinen",
+  "Deurne park",
+  "Sportcomplex Middelheim",
+  "Sportoase Borgerhout",
+  "Voetbalvelden Ekeren",
+  "Sportpark Luchtbal",
+  "Complex Merksem",
+  "Sportvelden Hoboken",
+  "Kiel",
+  "Park Spoor Noord",
+  "Sportcomplex Wilrijk",
+  "Atletiekpiste Linkeroever",
+];
+
 export default function Create() {
   const [title, setTitle] = useState("");
   const [dateTime, setDateTime] = useState(new Date());
@@ -123,18 +138,20 @@ export default function Create() {
       const next = new Date(dateTime);
       next.setFullYear(value.getFullYear(), value.getMonth(), value.getDate());
       setDateTime(next);
-      setPickerMode("time");
     } else {
       const next = new Date(dateTime);
       next.setHours(value.getHours(), value.getMinutes(), 0, 0);
       setDateTime(next);
-      setShowPicker(false);
-      setPickerMode("date");
     }
   };
 
   const confirmPicker = () => {
-    setShowPicker(false);
+    if (pickerMode === "date") {
+      setPickerMode("time");
+    } else {
+      setShowPicker(false);
+      setPickerMode("date");
+    }
   };
 
   return (
@@ -157,12 +174,26 @@ export default function Create() {
           onChangeText={setTitle}
         />
 
-        <Input
-          label="Location *"
-          placeholder="Central Park Field 3"
-          value={location}
-          onChangeText={setLocation}
-        />
+        <View style={styles.inputGroup}>
+          <Text style={styles.label}>Locatie *</Text>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.locationsScroll}
+          >
+            {MATCH_LOCATIONS.map((loc) => (
+              <TouchableOpacity
+                key={loc}
+                style={[styles.locationChip, location === loc && styles.locationChipSelected]}
+                onPress={() => setLocation(loc)}
+              >
+                <Text style={[styles.locationChipText, location === loc && styles.locationChipTextSelected]}>
+                  {loc}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
 
         <View style={styles.inputGroup}>
           <Text style={styles.label}>Datum & tijd *</Text>
@@ -338,6 +369,32 @@ const styles = StyleSheet.create({
   },
   skillLabelSelected: {
     color: Colors.primary,
+    fontWeight: "600",
+  },
+  locationsScroll: {
+    flexDirection: "row",
+    gap: Spacing.sm,
+    paddingVertical: Spacing.xs,
+  },
+  locationChip: {
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderRadius: BorderRadius.full,
+    backgroundColor: Colors.gray100,
+    borderWidth: 2,
+    borderColor: Colors.gray200,
+  },
+  locationChipSelected: {
+    backgroundColor: Colors.primaryLight,
+    borderColor: Colors.primary,
+  },
+  locationChipText: {
+    ...Typography.small,
+    color: Colors.gray700,
+    fontWeight: "500",
+  },
+  locationChipTextSelected: {
+    color: Colors.primaryDark,
     fontWeight: "600",
   },
   dateTimeRow: {
