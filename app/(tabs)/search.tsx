@@ -56,14 +56,21 @@ export default function Search() {
         } as Match;
       });
 
-      const now = new Date();
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const toMatchDay = (d: Date) => {
+        const x = new Date(d);
+        x.setHours(0, 0, 0, 0);
+        return x.getTime();
+      };
+      const todayMs = today.getTime();
       let filtered = matchesData;
 
       if (filter === 'past') {
-        filtered = filtered.filter(m => m.date < now);
+        filtered = filtered.filter(m => toMatchDay(m.date) < todayMs);
         filtered.sort((a, b) => b.date.getTime() - a.date.getTime());
       } else {
-        filtered = filtered.filter(m => m.date >= now);
+        filtered = filtered.filter(m => toMatchDay(m.date) >= todayMs);
         if (filter === 'open') filtered = filtered.filter(m => m.status === 'open');
         filtered.sort((a, b) => a.date.getTime() - b.date.getTime());
       }

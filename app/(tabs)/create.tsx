@@ -28,14 +28,13 @@ type SkillLevel = "beginner" | "intermediate" | "advanced" | "all";
 
 export default function Create() {
   const [title, setTitle] = useState("");
-  const [date, setDate] = useState(new Date());
-  const [time, setTime] = useState(new Date());
+  const [dateTime, setDateTime] = useState(new Date());
   const [location, setLocation] = useState("");
   const [maxPlayers, setMaxPlayers] = useState("22");
   const [skillLevel, setSkillLevel] = useState<SkillLevel>("all");
   const [loading, setLoading] = useState(false);
-  const [showDatePicker, setShowDatePicker] = useState(false);
-  const [showTimePicker, setShowTimePicker] = useState(false);
+  const [showPicker, setShowPicker] = useState(false);
+  const [pickerMode, setPickerMode] = useState<"date" | "time">("date");
 
   const skillLevels = [
     { id: "all", label: "All Levels", emoji: "🌟" },
@@ -66,7 +65,7 @@ export default function Create() {
       const userDoc = await getDoc(doc(db, "users", auth.currentUser.uid));
       const userName = userDoc.exists() ? userDoc.data().name : "Unknown";
 
-      const timeString = time.toLocaleTimeString("en-US", {
+      const timeString = dateTime.toLocaleTimeString("en-US", {
         hour: "2-digit",
         minute: "2-digit",
         hour12: false,
@@ -76,7 +75,7 @@ export default function Create() {
         createdBy: auth.currentUser.uid,
         createdByName: userName,
         title: title.trim(),
-        date,
+        date: dateTime,
         time: timeString,
         location: location.trim(),
         maxPlayers: playersCount,
@@ -95,8 +94,7 @@ export default function Create() {
       setTitle("");
       setLocation("");
       setMaxPlayers("22");
-      setDate(new Date());
-      setTime(new Date());
+      setDateTime(new Date());
       setSkillLevel("all");
     } catch (error) {
       console.error(error);
@@ -106,14 +104,37 @@ export default function Create() {
     }
   };
 
-  const handleDateChange = (_: any, selectedDate?: Date) => {
-    setShowDatePicker(false);
-    if (selectedDate) setDate(selectedDate);
+  const openDatePicker = () => {
+    setPickerMode("date");
+    setShowPicker(true);
   };
 
-  const handleTimeChange = (_: any, selectedTime?: Date) => {
-    setShowTimePicker(false);
-    if (selectedTime) setTime(selectedTime);
+  const openTimePicker = () => {
+    setPickerMode("time");
+    setShowPicker(true);
+  };
+
+  const handlePickerChange = (_: unknown, value?: Date) => {
+    if (!value) {
+      if (Platform.OS === "android") setShowPicker(false);
+      return;
+    }
+    if (pickerMode === "date") {
+      const next = new Date(dateTime);
+      next.setFullYear(value.getFullYear(), value.getMonth(), value.getDate());
+      setDateTime(next);
+      setPickerMode("time");
+    } else {
+      const next = new Date(dateTime);
+      next.setHours(value.getHours(), value.getMinutes(), 0, 0);
+      setDateTime(next);
+      setShowPicker(false);
+      setPickerMode("date");
+    }
+  };
+
+  const confirmPicker = () => {
+    setShowPicker(false);
   };
 
   return (
@@ -144,56 +165,66 @@ export default function Create() {
         />
 
         <View style={styles.inputGroup}>
-          <Text style={styles.label}>Datum *</Text>
+          <Text style={styles.label}>Datum & tijd *</Text>
           <TouchableOpacity
-            style={styles.dateTimeButton}
-            onPress={() => setShowDatePicker(true)}
+            style={styles.dateTimeRow}
+            onPress={openDatePicker}
+            activeOpacity={0.7}
           >
             <Text style={styles.dateTimeText}>
-              {date.toLocaleDateString("nl-NL", {
+              {dateTime.toLocaleDateString("nl-NL", {
                 weekday: "short",
                 day: "numeric",
-                month: "long",
+                month: "short",
                 year: "numeric",
               })}
-            </Text>
-          </TouchableOpacity>
-          {showDatePicker && (
-            <DateTimePicker
-              value={date}
-              mode="date"
-              display={Platform.OS === "ios" ? "spinner" : "default"}
-              minimumDate={new Date()}
-              onChange={handleDateChange}
-              {...(Platform.OS === "android" && {
-                display: "default",
-              })}
-            />
-          )}
-        </View>
-
-        <View style={styles.inputGroup}>
-          <Text style={styles.label}>Tijd *</Text>
-          <TouchableOpacity
-            style={styles.dateTimeButton}
-            onPress={() => setShowTimePicker(true)}
-          >
-            <Text style={styles.dateTimeText}>
-              {time.toLocaleTimeString("nl-NL", {
+              {" · "}
+              {dateTime.toLocaleTimeString("nl-NL", {
                 hour: "2-digit",
                 minute: "2-digit",
               })}
             </Text>
+            <Text style={styles.dateTimeHint}>Kies datum en tijd</Text>
           </TouchableOpacity>
-          {showTimePicker && (
-            <DateTimePicker
-              value={time}
-              mode="time"
-              display={Platform.OS === "ios" ? "spinner" : "default"}
-              onChange={handleTimeChange}
-            />
-          )}
         </View>
+
+        <Modal
+          visible={showPicker}
+          transparent
+          animationType="slide"
+          onRequestClose={() => setShowPicker(false)}
+        >
+          <TouchableOpacity
+            style={styles.modalOverlay}
+            activeOpacity={1}
+            onPress={() => setShowPicker(false)}
+          />
+          <View style={styles.modalContent}>
+            <View style={styles.pickerBar}>
+              <TouchableOpacity onPress={Platform.OS === "ios" ? openDatePicker : undefined}>
+                <Text style={[styles.pickerTab, pickerMode === "date" && styles.pickerTabActive]}>
+                  Datum
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={Platform.OS === "ios" ? openTimePicker : undefined}>
+                <Text style={[styles.pickerTab, pickerMode === "time" && styles.pickerTabActive]}>
+                  Tijd
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.pickerDone} onPress={confirmPicker}>
+                <Text style={styles.pickerDoneText}>Klaar</Text>
+              </TouchableOpacity>
+            </View>
+            <DateTimePicker
+              value={dateTime}
+              mode={pickerMode}
+              display={Platform.OS === "android" ? (pickerMode === "date" ? "calendar" : "default") : "spinner"}
+              minimumDate={new Date()}
+              onChange={handlePickerChange}
+              style={Platform.OS === "ios" ? styles.iosPicker : undefined}
+            />
+          </View>
+        </Modal>
 
         <Input
           label="Max Players *"
@@ -306,7 +337,10 @@ const styles = StyleSheet.create({
     color: Colors.primary,
     fontWeight: "600",
   },
-  dateTimeButton: {
+  dateTimeRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     backgroundColor: Colors.white,
     borderWidth: 2,
     borderColor: Colors.gray200,
@@ -316,5 +350,49 @@ const styles = StyleSheet.create({
   dateTimeText: {
     ...Typography.body,
     color: Colors.gray800,
+    flex: 1,
+  },
+  dateTimeHint: {
+    ...Typography.small,
+    color: Colors.gray500,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.4)",
+  },
+  modalContent: {
+    backgroundColor: Colors.white,
+    borderTopLeftRadius: BorderRadius.lg,
+    borderTopRightRadius: BorderRadius.lg,
+    paddingBottom: Spacing.xl,
+  },
+  pickerBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.gray200,
+  },
+  pickerTab: {
+    ...Typography.body,
+    color: Colors.gray500,
+    paddingVertical: Spacing.xs,
+  },
+  pickerTabActive: {
+    color: Colors.primary,
+    fontWeight: "600",
+  },
+  pickerDone: {
+    paddingVertical: Spacing.xs,
+    paddingHorizontal: Spacing.sm,
+  },
+  pickerDoneText: {
+    ...Typography.bodyBold,
+    color: Colors.primary,
+  },
+  iosPicker: {
+    height: 200,
   },
 });
