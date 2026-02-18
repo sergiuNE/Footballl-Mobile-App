@@ -40,8 +40,13 @@ export default function MatchDetailScreen() {
       setMatch({
         id: snap.id,
         ...data,
+        title: data.title,
         date: data.date,
         players: data.players ?? [],
+        homeScore: data.homeScore,
+        awayScore: data.awayScore,
+        shotsOnTargetHome: data.shotsOnTargetHome,
+        shotsOnTargetAway: data.shotsOnTargetAway,
       } as Match);
     } catch {
       setMatch(null);
@@ -137,7 +142,7 @@ export default function MatchDetailScreen() {
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
           <Ionicons name="arrow-back" size={24} color="#000" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle} numberOfLines={1}>{match.location}</Text>
+        <Text style={styles.headerTitle} numberOfLines={1}>{match.title ?? match.location}</Text>
       </View>
 
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
@@ -153,6 +158,26 @@ export default function MatchDetailScreen() {
           <View style={styles.infoRow}>
             <Ionicons name="location-outline" size={20} color="#666" />
             <Text style={styles.infoText}>{match.location}</Text>
+          </View>
+        </View>
+
+        <View style={styles.statsCard}>
+          <Text style={styles.sectionTitle}>Resultaat & statistieken</Text>
+          <View style={styles.scoreRow}>
+            <Text style={styles.statsLabel}>Score</Text>
+            <Text style={styles.scoreValue}>
+              {match.homeScore != null && match.awayScore != null
+                ? `${match.homeScore} - ${match.awayScore}`
+                : '–'}
+            </Text>
+          </View>
+          <View style={styles.scoreRow}>
+            <Text style={styles.statsLabel}>Schoten op doel</Text>
+            <Text style={styles.scoreValue}>
+              {match.shotsOnTargetHome != null && match.shotsOnTargetAway != null
+                ? `${match.shotsOnTargetHome} - ${match.shotsOnTargetAway}`
+                : '–'}
+            </Text>
           </View>
         </View>
 
@@ -273,6 +298,34 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: '#333',
     flex: 1,
+  },
+  statsCard: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  scoreRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  statsLabel: {
+    fontSize: 15,
+    color: '#666',
+  },
+  scoreValue: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#333',
   },
   lineupSection: {
     backgroundColor: '#fff',

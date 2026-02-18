@@ -80,11 +80,11 @@ export default function Create() {
         time: timeString,
         location: location.trim(),
         maxPlayers: playersCount,
-        currentPlayers: 0,
+        currentPlayers: 1,
         formation: "4-3-3",
         skillLevel,
         status: "open",
-        players: [],
+        players: [{ userId: auth.currentUser.uid, userName }],
         createdAt: new Date(),
       });
 
@@ -142,6 +142,58 @@ export default function Create() {
           value={location}
           onChangeText={setLocation}
         />
+
+        <View style={styles.inputGroup}>
+          <Text style={styles.label}>Datum *</Text>
+          <TouchableOpacity
+            style={styles.dateTimeButton}
+            onPress={() => setShowDatePicker(true)}
+          >
+            <Text style={styles.dateTimeText}>
+              {date.toLocaleDateString("nl-NL", {
+                weekday: "short",
+                day: "numeric",
+                month: "long",
+                year: "numeric",
+              })}
+            </Text>
+          </TouchableOpacity>
+          {showDatePicker && (
+            <DateTimePicker
+              value={date}
+              mode="date"
+              display={Platform.OS === "ios" ? "spinner" : "default"}
+              minimumDate={new Date()}
+              onChange={handleDateChange}
+              {...(Platform.OS === "android" && {
+                display: "default",
+              })}
+            />
+          )}
+        </View>
+
+        <View style={styles.inputGroup}>
+          <Text style={styles.label}>Tijd *</Text>
+          <TouchableOpacity
+            style={styles.dateTimeButton}
+            onPress={() => setShowTimePicker(true)}
+          >
+            <Text style={styles.dateTimeText}>
+              {time.toLocaleTimeString("nl-NL", {
+                hour: "2-digit",
+                minute: "2-digit",
+              })}
+            </Text>
+          </TouchableOpacity>
+          {showTimePicker && (
+            <DateTimePicker
+              value={time}
+              mode="time"
+              display={Platform.OS === "ios" ? "spinner" : "default"}
+              onChange={handleTimeChange}
+            />
+          )}
+        </View>
 
         <Input
           label="Max Players *"
@@ -253,5 +305,16 @@ const styles = StyleSheet.create({
   skillLabelSelected: {
     color: Colors.primary,
     fontWeight: "600",
+  },
+  dateTimeButton: {
+    backgroundColor: Colors.white,
+    borderWidth: 2,
+    borderColor: Colors.gray200,
+    borderRadius: BorderRadius.md,
+    padding: Spacing.md,
+  },
+  dateTimeText: {
+    ...Typography.body,
+    color: Colors.gray800,
   },
 });

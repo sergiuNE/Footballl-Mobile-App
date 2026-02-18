@@ -25,7 +25,7 @@ type Match = {
 export default function Search() {
   const [matches, setMatches] = useState<Match[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState<'all' | 'open' | 'upcoming' | 'history'>('all');
+  const [filter, setFilter] = useState<'upcoming' | 'past' | 'all' | 'open'>('upcoming');
 
   useEffect(() => {
     loadMatches();
@@ -37,33 +37,34 @@ export default function Search() {
       let q = query(collection(db, 'matches'));
 
       const snapshot = await getDocs(q);
-      const matchesData = snapshot.docs.map(doc => {
-        const data = doc.data();
+      const matchesData = snapshot.docs.map(docSnap => {
+        const data = docSnap.data();
+        const date = data.date instanceof Timestamp ? data.date.toDate() : (data.date?.seconds ? new Date(data.date.seconds * 1000) : new Date(data.date));
+        const players = data.players ?? [];
+        const currentPlayers = typeof data.currentPlayers === 'number' ? data.currentPlayers : players.length;
         return {
-          id: doc.id,
-          ...data,
-          date: data.date instanceof Timestamp ? data.date.toDate() : new Date(data.date),
+          id: docSnap.id,
+          title: data.title ?? data.location ?? 'Wedstrijd',
+          location: data.location ?? '',
+          date,
+          time: data.time ?? '',
+          maxPlayers: data.maxPlayers ?? 22,
+          currentPlayers,
+          skillLevel: data.skillLevel ?? 'all',
+          status: data.status ?? 'open',
+          createdByName: data.createdByName ?? 'Onbekend',
         } as Match;
       });
 
       const now = new Date();
       let filtered = matchesData;
 
-      // Filter logic
-      if (filter === 'history') {
-        // Only past matches
+      if (filter === 'past') {
         filtered = filtered.filter(m => m.date < now);
-        // Sort newest first for history
         filtered.sort((a, b) => b.date.getTime() - a.date.getTime());
       } else {
-        // All other filters: only future matches
         filtered = filtered.filter(m => m.date >= now);
-
-        if (filter === 'open') {
-          filtered = filtered.filter(m => m.status === 'open');
-        }
-
-        // Sort oldest first for upcoming
+        if (filter === 'open') filtered = filtered.filter(m => m.status === 'open');
         filtered.sort((a, b) => a.date.getTime() - b.date.getTime());
       }
 
@@ -94,22 +95,18 @@ export default function Search() {
 
   const getFilterLabel = (f: typeof filter) => {
     const labels = {
+      upcoming: 'Upcoming',
+      past: 'Past',
       all: 'All',
       open: 'Open',
-      upcoming: 'Upcoming',
-      history: 'History',
     };
     return labels[f];
   };
 
   const getEmptyMessage = () => {
-    if (filter === 'history') {
-      return 'No past matches yet';
-    }
-    if (filter === 'open') {
-      return 'No open matches at the moment';
-    }
-    return 'Be the first to create a match!';
+    if (filter === 'past') return 'Nog geen wedstrijden in het verleden';
+    if (filter === 'open') return 'Geen open wedstrijden op dit moment';
+    return 'Maak een wedstrijd aan via Aanmaken!';
   };
 
   return (
@@ -128,7 +125,7 @@ export default function Search() {
       {/* Filters */}
       <View style={styles.filters}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-          {(['all', 'open', 'upcoming', 'history'] as const).map((f) => (
+          {(['upcoming', 'past', 'all', 'open'] as const).map((f) => (
             <TouchableOpacity
               key={f}
               style={[
@@ -159,7 +156,7 @@ export default function Search() {
         {matches.length === 0 ? (
           <View style={styles.emptyState}>
             <Text style={styles.emptyEmoji}>
-              {filter === 'history' ? '📜' : '⚽'}
+              {filter === 'past' ? '📜' : '⚽'}
             </Text>
             <Text style={styles.emptyTitle}>No matches found</Text>
             <Text style={styles.emptyText}>{getEmptyMessage()}</Text>
@@ -169,15 +166,13 @@ export default function Search() {
             const skill = getSkillBadge(match.skillLevel);
             const status = getStatusBadge(match.status);
             const isFull = match.currentPlayers >= match.maxPlayers;
-            const isPast = filter === 'history';
+            const isPast = filter === 'past';
 
             return (
               <TouchableOpacity
                 key={match.id}
                 activeOpacity={0.7}
-                onPress={() => {
-                  console.log('Match clicked:', match.id);
-                }}
+                onPress={() => router.push({ pathname: '/match/[id]', params: { id: match.id } })}
               >
                 <Card style={[
                   styles.matchCard,
