@@ -6,12 +6,14 @@ import {
   ScrollView,
   ActivityIndicator,
   Alert,
+  Modal,
 } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { doc, getDoc, updateDoc, arrayUnion, arrayRemove } from 'firebase/firestore';
 import { auth, db } from '../../config/firebase';
 import type { Match, PlayerInMatch } from '../../types/match';
+import { FOOTBALL_POSITIONS } from '../../constants/positions';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -26,6 +28,9 @@ export default function MatchDetailScreen() {
   const [match, setMatch] = useState<Match | null>(null);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
+  const [showPositionsModal, setShowPositionsModal] = useState(false);
+  const [editingPlayers, setEditingPlayers] = useState<PlayerInMatch[]>([]);
+  const [savingPositions, setSavingPositions] = useState(false);
 
   const loadMatch = async () => {
     if (!id) return;
@@ -61,9 +66,35 @@ export default function MatchDetailScreen() {
 
   const user = auth.currentUser;
   const players = match?.players ?? [];
+  const isCreator = user && match?.createdBy === user.uid;
   const isJoined = user && players.some((p) => p.userId === user.uid);
   const isFull = (match?.players?.length ?? 0) >= (match?.maxPlayers ?? 0);
   const canJoin = user && !isJoined && !isFull;
+
+  const openPositionsModal = () => {
+    setEditingPlayers(players.map((p) => ({ ...p })));
+    setShowPositionsModal(true);
+  };
+
+  const setPlayerPosition = (userId: string, position: string) => {
+    setEditingPlayers((prev) =>
+      prev.map((p) => (p.userId === userId ? { ...p, position } : p))
+    );
+  };
+
+  const savePositions = async () => {
+    if (!match?.id) return;
+    setSavingPositions(true);
+    try {
+      await updateDoc(doc(db, 'matches', match.id), { players: editingPlayers });
+      await loadMatch();
+      setShowPositionsModal(false);
+    } catch {
+      Alert.alert('Fout', 'Posities konden niet worden opgeslagen.');
+    } finally {
+      setSavingPositions(false);
+    }
+  };
 
   const handleJoin = async () => {
     if (!user || !match?.id || !canJoin) return;
@@ -182,7 +213,15 @@ export default function MatchDetailScreen() {
         </View>
 
         <View style={styles.lineupSection}>
-          <Text style={styles.sectionTitle}>Opstelling</Text>
+          <View style={styles.lineupSectionHeader}>
+            <Text style={styles.sectionTitle}>Opstelling</Text>
+            {isCreator && players.length > 0 && (
+              <TouchableOpacity style={styles.positionsBtn} onPress={openPositionsModal}>
+                <Ionicons name="create-outline" size={18} color="#007AFF" />
+                <Text style={styles.positionsBtnText}>Posities beheren</Text>
+              </TouchableOpacity>
+            )}
+          </View>
           <Text style={styles.playersCount}>
             {players.length} / {match.maxPlayers} spelers
           </Text>
@@ -191,7 +230,12 @@ export default function MatchDetailScreen() {
           ) : (
             <View style={styles.lineupList}>
               {players.map((p: PlayerInMatch, index: number) => (
-                <View key={p.userId} style={styles.lineupRow}>
+                <TouchableOpacity
+                  key={p.userId}
+                  style={styles.lineupRow}
+                  onPress={() => router.push(`/user/${p.userId}` as any)}
+                  activeOpacity={0.7}
+                >
                   <View style={styles.jersey}>
                     <Text style={styles.jerseyNumber}>{index + 1}</Text>
                   </View>
@@ -199,11 +243,45 @@ export default function MatchDetailScreen() {
                   {p.position ? (
                     <Text style={styles.position}>{p.position}</Text>
                   ) : null}
-                </View>
+                  <Ionicons name="chevron-forward" size={18} color="#999" />
+                </TouchableOpacity>
               ))}
             </View>
           )}
         </View>
+
+        <Modal visible={showPositionsModal} transparent animationType="slide">
+          <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setShowPositionsModal(false)} />
+          <View style={styles.positionsModalContent}>
+            <Text style={styles.positionsModalTitle}>Posities beheren</Text>
+            <ScrollView style={styles.positionsModalScroll}>
+              {editingPlayers.map((p) => (
+                <View key={p.userId} style={styles.positionRow}>
+                  <Text style={styles.positionRowName} numberOfLines={1}>{p.userName}</Text>
+                  <View style={styles.positionChips}>
+                    {FOOTBALL_POSITIONS.map((pos) => (
+                      <TouchableOpacity
+                        key={pos}
+                        style={[styles.positionChip, p.position === pos && styles.positionChipSelected]}
+                        onPress={() => setPlayerPosition(p.userId, p.position === pos ? '' : pos)}
+                      >
+                        <Text style={[styles.positionChipText, p.position === pos && styles.positionChipTextSelected]}>{pos}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
+              ))}
+            </ScrollView>
+            <View style={styles.positionsModalActions}>
+              <TouchableOpacity style={styles.positionsCancel} onPress={() => setShowPositionsModal(false)}>
+                <Text style={styles.positionsCancelText}>Annuleren</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.positionsSave} onPress={savePositions} disabled={savingPositions}>
+                <Text style={styles.positionsSaveText}>{savingPositions ? 'Bezig...' : 'Opslaan'}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
 
         {user && (
           <View style={styles.actions}>
@@ -352,6 +430,105 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#999',
     fontStyle: 'italic',
+  },
+  lineupSectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  positionsBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+  },
+  positionsBtnText: {
+    fontSize: 14,
+    color: '#007AFF',
+    fontWeight: '600',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+  },
+  positionsModalContent: {
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    maxHeight: '80%',
+    paddingBottom: 24,
+  },
+  positionsModalTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  positionsModalScroll: {
+    maxHeight: 400,
+    padding: 16,
+  },
+  positionRow: {
+    marginBottom: 16,
+  },
+  positionRowName: {
+    fontSize: 15,
+    fontWeight: '600',
+    marginBottom: 8,
+    color: '#333',
+  },
+  positionChips: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  positionChip: {
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    backgroundColor: '#f0f0f0',
+  },
+  positionChipSelected: {
+    backgroundColor: '#007AFF',
+  },
+  positionChipText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#666',
+  },
+  positionChipTextSelected: {
+    color: '#fff',
+  },
+  positionsModalActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 12,
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#eee',
+  },
+  positionsCancel: {
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+  },
+  positionsCancelText: {
+    fontSize: 16,
+    color: '#666',
+  },
+  positionsSave: {
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    backgroundColor: '#34C759',
+    borderRadius: 10,
+  },
+  positionsSaveText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#fff',
   },
   lineupList: {
     gap: 10,

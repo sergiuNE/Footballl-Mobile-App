@@ -215,14 +215,17 @@ export default function Create() {
                 <Text style={styles.pickerDoneText}>Klaar</Text>
               </TouchableOpacity>
             </View>
-            <DateTimePicker
-              value={dateTime}
-              mode={pickerMode}
-              display={Platform.OS === "android" ? (pickerMode === "date" ? "calendar" : "default") : "spinner"}
-              minimumDate={new Date()}
-              onChange={handlePickerChange}
-              style={Platform.OS === "ios" ? styles.iosPicker : undefined}
-            />
+            <View style={styles.pickerWrapper}>
+              <DateTimePicker
+                value={dateTime}
+                mode={pickerMode}
+                display="spinner"
+                minimumDate={new Date()}
+                onChange={handlePickerChange}
+                themeVariant="light"
+                style={Platform.OS === "ios" ? styles.iosPicker : undefined}
+              />
+            </View>
           </View>
         </Modal>
 
@@ -391,6 +394,10 @@ const styles = StyleSheet.create({
   pickerDoneText: {
     ...Typography.bodyBold,
     color: Colors.primary,
+  },
+  pickerWrapper: {
+    backgroundColor: Colors.white,
+    minHeight: 200,
   },
   iosPicker: {
     height: 200,
