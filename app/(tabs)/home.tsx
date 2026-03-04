@@ -152,7 +152,7 @@ export default function Home() {
         <Text style={styles.subtitle}>
           {nextMatch
             ? nextMatch.title || nextMatch.location
-            : "Join a match to see lineup"}
+            : "Join a match to see lineup."}
         </Text>
       </View>
 
@@ -236,8 +236,9 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.background,
   },
   content: {
+    paddingTop: 80,
     padding: Spacing.lg,
-    paddingBottom: Spacing.xxl,
+    paddingBottom: 120,
   },
   centered: {
     flex: 1,

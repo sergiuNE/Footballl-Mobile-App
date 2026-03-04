@@ -11,7 +11,7 @@ type FootballFieldProps = {
 };
 
 const FIELD_WIDTH = Dimensions.get('window').width - 32;
-const FIELD_HEIGHT = FIELD_WIDTH * 1.4; // Voetbalveld ratio
+const FIELD_HEIGHT = FIELD_WIDTH * 1.4; // Footballfield ratio
 
 export default function FootballField({ 
   formation, 
@@ -28,19 +28,19 @@ export default function FootballField({
 
   return (
     <View style={styles.container}>
-      {/* Veld achtergrond */}
+      {/* Field background */}
       <View style={styles.field}>
-        {/* Middenlijn */}
+        {/* Mid line */}
         <View style={styles.midLine} />
         
-        {/* Middencirkel */}
+        {/* Mid circel */}
         <View style={styles.centerCircle} />
         
         {/* Penalty boxes */}
         <View style={[styles.penaltyBox, styles.penaltyBoxTop]} />
         <View style={[styles.penaltyBox, styles.penaltyBoxBottom]} />
         
-        {/* Spelers posities */}
+        {/* Players positions */}
         {positions.map((pos) => {
           const player = getPlayerAtPosition(pos.position);
           
@@ -58,7 +58,7 @@ export default function FootballField({
               disabled={!editable && !player}
               activeOpacity={0.7}
             >
-              {/* Speler cirkel */}
+              {/* Player circel */}
               <View style={[
                 styles.playerCircle,
                 player ? styles.playerFilled : styles.playerEmpty,
@@ -79,12 +79,12 @@ export default function FootballField({
                 </View>
               )}
               
-              {/* Positie label */}
+              {/* Position label */}
               <View style={styles.positionLabel}>
                 <Text style={styles.positionText}>{pos.label}</Text>
               </View>
               
-              {/* Speler naam */}
+              {/* Player name */}
               {player && (
                 <Text style={styles.playerName} numberOfLines={1}>
                   {player.name}
@@ -111,7 +111,7 @@ const styles = StyleSheet.create({
   field: {
     width: FIELD_WIDTH,
     height: FIELD_HEIGHT,
-    backgroundColor: '#16a34a', // Gras groen
+    backgroundColor: '#16a34a', // Gras
     borderRadius: BorderRadius.lg,
     borderWidth: 3,
     borderColor: Colors.white,

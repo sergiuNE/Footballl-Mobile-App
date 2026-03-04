@@ -10,6 +10,7 @@ import { Colors, Spacing, Typography, BorderRadius } from '../../constants/theme
 import { LinearGradient } from 'expo-linear-gradient';
 import { FOOTBALL_POSITIONS } from '../../constants/positions';
 import { Formation } from '../../types';
+import PasswordInput from '../../components/PasswordInput';
 
 const FORMATIONS: Formation[] = ['4-3-3', '4-4-2', '3-5-2', '4-2-3-1'];
 
@@ -40,8 +41,18 @@ export default function Register() {
       return;
     }
 
-    if (password.length < 6) {
-      Alert.alert('Error', 'Password must be at least 6 characters');
+    if (password.length < 8) {
+      Alert.alert('Weak Password', 'Use at least 8 characters');
+      return;
+    }
+
+    if (!/[A-Z]/.test(password)) {
+      Alert.alert('Weak Password', 'Include at least one uppercase letter');
+      return;
+    }
+
+    if (!/[0-9]/.test(password)) {
+      Alert.alert('Weak Password', 'Include at least one number');
       return;
     }
 
@@ -53,7 +64,6 @@ export default function Register() {
         displayName: name.trim(),
       });
       
-      // ✅ Save with AUTH UID
       await setDoc(doc(db, 'users', userCredential.user.uid), {
         name: name.trim(),
         email,
@@ -105,12 +115,11 @@ export default function Register() {
               autoCapitalize="none"
             />
 
-            <Input
-              label="Password"
-              placeholder="At least 6 characters"
+            <PasswordInput
               value={password}
               onChangeText={setPassword}
-              secureTextEntry
+              label="Password"
+              showStrength
             />
 
             <Text style={styles.label}>Positions *</Text>

@@ -60,3 +60,18 @@ export type Match = {
   players: Player[];
   createdAt: Date;
 };
+
+export type UserProfile = {
+  id: string;
+  name: string;
+  email?: string;
+  rating?: number;
+  matchesPlayed?: number;
+};
+export type ChatMessage = {
+  id: string;
+  text: string;
+  senderId: string;
+  senderName: string;
+  createdAt: Date;
+};

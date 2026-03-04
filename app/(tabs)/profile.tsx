@@ -65,7 +65,7 @@ export default function Profile() {
 
   const handleSave = async () => {
     if (!auth.currentUser || !name.trim()) {
-      Alert.alert("Error", "Name cannot be empty");
+      Alert.alert("Error", "Name cannot be empty.");
       return;
     }
 
@@ -80,7 +80,7 @@ export default function Profile() {
       setEditing(false);
       Alert.alert("Success", "Profile updated!");
     } catch (error) {
-      Alert.alert("Error", "Could not save profile");
+      Alert.alert("Error", "Could not save profile.");
       console.error(error);
     } finally {
       setSaving(false);
@@ -264,7 +264,8 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.background,
   },
   content: {
-    paddingBottom: Spacing.xxl,
+    paddingTop: 80,
+    paddingBottom: 120,
   },
   loadingContainer: {
     flex: 1,

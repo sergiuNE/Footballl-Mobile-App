@@ -60,18 +60,18 @@ export default function Create() {
 
   const handleCreate = async () => {
     if (!title.trim() || !location.trim()) {
-      Alert.alert("Error", "Fill in all required fields");
+      Alert.alert("Error", "Fill in all required fields.");
       return;
     }
 
     const playersCount = parseInt(maxPlayers);
     if (isNaN(playersCount) || playersCount < 2 || playersCount > 22) {
-      Alert.alert("Error", "Max players must be between 2 and 22");
+      Alert.alert("Error", "Max players must be between 2 and 22.");
       return;
     }
 
     if (!auth.currentUser) {
-      Alert.alert("Error", "You must be logged in");
+      Alert.alert("Error", "You must be logged in.");
       return;
     }
 
@@ -113,7 +113,7 @@ export default function Create() {
       setSkillLevel("all");
     } catch (error) {
       console.error(error);
-      Alert.alert("Error", "Could not create match");
+      Alert.alert("Error", "Could not create match.");
     } finally {
       setLoading(false);
     }
@@ -184,10 +184,18 @@ export default function Create() {
             {MATCH_LOCATIONS.map((loc) => (
               <TouchableOpacity
                 key={loc}
-                style={[styles.locationChip, location === loc && styles.locationChipSelected]}
+                style={[
+                  styles.locationChip,
+                  location === loc && styles.locationChipSelected,
+                ]}
                 onPress={() => setLocation(loc)}
               >
-                <Text style={[styles.locationChipText, location === loc && styles.locationChipTextSelected]}>
+                <Text
+                  style={[
+                    styles.locationChipText,
+                    location === loc && styles.locationChipTextSelected,
+                  ]}
+                >
                   {loc}
                 </Text>
               </TouchableOpacity>
@@ -232,17 +240,34 @@ export default function Create() {
           />
           <View style={styles.modalContent}>
             <View style={styles.pickerBar}>
-              <TouchableOpacity onPress={Platform.OS === "ios" ? openDatePicker : undefined}>
-                <Text style={[styles.pickerTab, pickerMode === "date" && styles.pickerTabActive]}>
+              <TouchableOpacity
+                onPress={Platform.OS === "ios" ? openDatePicker : undefined}
+              >
+                <Text
+                  style={[
+                    styles.pickerTab,
+                    pickerMode === "date" && styles.pickerTabActive,
+                  ]}
+                >
                   Datum
                 </Text>
               </TouchableOpacity>
-              <TouchableOpacity onPress={Platform.OS === "ios" ? openTimePicker : undefined}>
-                <Text style={[styles.pickerTab, pickerMode === "time" && styles.pickerTabActive]}>
+              <TouchableOpacity
+                onPress={Platform.OS === "ios" ? openTimePicker : undefined}
+              >
+                <Text
+                  style={[
+                    styles.pickerTab,
+                    pickerMode === "time" && styles.pickerTabActive,
+                  ]}
+                >
                   Tijd
                 </Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.pickerDone} onPress={confirmPicker}>
+              <TouchableOpacity
+                style={styles.pickerDone}
+                onPress={confirmPicker}
+              >
                 <Text style={styles.pickerDoneText}>Klaar</Text>
               </TouchableOpacity>
             </View>
@@ -311,11 +336,12 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.background,
   },
   content: {
-    paddingBottom: Spacing.xxl,
+    paddingTop: 80,
+    paddingBottom: 120,
   },
   header: {
     padding: Spacing.lg,
-    paddingTop: Spacing.xxl,
+    paddingTop: Spacing.xl,
     paddingBottom: Spacing.xl,
     marginBottom: Spacing.lg,
   },

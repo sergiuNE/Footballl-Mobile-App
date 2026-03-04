@@ -130,7 +130,7 @@ export default function MatchDetailScreen() {
     if (!user || !match?.id || !canJoin) return;
     
     if (!selectedPosition) {
-      Alert.alert("Error", "Please select a position first");
+      Alert.alert("Error", "Please select a position first!");
       return;
     }
 

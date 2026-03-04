@@ -36,21 +36,9 @@ import {
 } from "../../constants/theme";
 import { LinearGradient } from "expo-linear-gradient";
 import Card from "../../components/Card";
+import { UserProfile } from "@/types";
+import { ChatMessage } from "@/types";
 
-type UserProfile = {
-  id: string;
-  name: string;
-  email?: string;
-  rating?: number;
-  matchesPlayed?: number;
-};
-type ChatMessage = {
-  id: string;
-  text: string;
-  senderId: string;
-  senderName: string;
-  createdAt: Date;
-};
 
 export default function UserProfileScreen() {
   const { id: userId } = useLocalSearchParams<{ id: string }>();

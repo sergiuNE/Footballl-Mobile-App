@@ -1,13 +1,25 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl } from 'react-native';
-import { useState, useEffect } from 'react';
-import { collection, query, getDocs, Timestamp } from 'firebase/firestore';
-import { db } from '../../config/firebase';
-import { router } from 'expo-router';
-import Card from '../../components/Card';
-import { Colors, Spacing, Typography, BorderRadius } from '../../constants/theme';
-import { LinearGradient } from 'expo-linear-gradient';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  RefreshControl,
+} from "react-native";
+import { useState, useEffect } from "react";
+import { collection, query, getDocs, Timestamp } from "firebase/firestore";
+import { db } from "../../config/firebase";
+import { router } from "expo-router";
+import Card from "../../components/Card";
+import {
+  Colors,
+  Spacing,
+  Typography,
+  BorderRadius,
+} from "../../constants/theme";
+import { LinearGradient } from "expo-linear-gradient";
 
-type SkillLevel = 'beginner' | 'intermediate' | 'advanced' | 'all';
+type SkillLevel = "beginner" | "intermediate" | "advanced" | "all";
 
 type Match = {
   id: string;
@@ -25,7 +37,9 @@ type Match = {
 export default function Search() {
   const [matches, setMatches] = useState<Match[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState<'upcoming' | 'past' | 'all' | 'open'>('upcoming');
+  const [filter, setFilter] = useState<"upcoming" | "past" | "all" | "open">(
+    "upcoming",
+  );
 
   useEffect(() => {
     loadMatches();
@@ -34,25 +48,33 @@ export default function Search() {
   const loadMatches = async () => {
     setLoading(true);
     try {
-      let q = query(collection(db, 'matches'));
+      let q = query(collection(db, "matches"));
 
       const snapshot = await getDocs(q);
-      const matchesData = snapshot.docs.map(docSnap => {
+      const matchesData = snapshot.docs.map((docSnap) => {
         const data = docSnap.data();
-        const date = data.date instanceof Timestamp ? data.date.toDate() : (data.date?.seconds ? new Date(data.date.seconds * 1000) : new Date(data.date));
+        const date =
+          data.date instanceof Timestamp
+            ? data.date.toDate()
+            : data.date?.seconds
+              ? new Date(data.date.seconds * 1000)
+              : new Date(data.date);
         const players = data.players ?? [];
-        const currentPlayers = typeof data.currentPlayers === 'number' ? data.currentPlayers : players.length;
+        const currentPlayers =
+          typeof data.currentPlayers === "number"
+            ? data.currentPlayers
+            : players.length;
         return {
           id: docSnap.id,
-          title: data.title ?? data.location ?? 'Wedstrijd',
-          location: data.location ?? '',
+          title: data.title ?? data.location ?? "Wedstrijd",
+          location: data.location ?? "",
           date,
-          time: data.time ?? '',
+          time: data.time ?? "",
           maxPlayers: data.maxPlayers ?? 22,
           currentPlayers,
-          skillLevel: data.skillLevel ?? 'all',
-          status: data.status ?? 'open',
-          createdByName: data.createdByName ?? 'Onbekend',
+          skillLevel: data.skillLevel ?? "all",
+          status: data.status ?? "open",
+          createdByName: data.createdByName ?? "Onbekend",
         } as Match;
       });
 
@@ -66,18 +88,19 @@ export default function Search() {
       const todayMs = today.getTime();
       let filtered = matchesData;
 
-      if (filter === 'past') {
-        filtered = filtered.filter(m => toMatchDay(m.date) < todayMs);
+      if (filter === "past") {
+        filtered = filtered.filter((m) => toMatchDay(m.date) < todayMs);
         filtered.sort((a, b) => b.date.getTime() - a.date.getTime());
       } else {
-        filtered = filtered.filter(m => toMatchDay(m.date) >= todayMs);
-        if (filter === 'open') filtered = filtered.filter(m => m.status === 'open');
+        filtered = filtered.filter((m) => toMatchDay(m.date) >= todayMs);
+        if (filter === "open")
+          filtered = filtered.filter((m) => m.status === "open");
         filtered.sort((a, b) => a.date.getTime() - b.date.getTime());
       }
 
       setMatches(filtered);
     } catch (error) {
-      console.error('Error loading matches:', error);
+      console.error("Error loading matches:", error);
     } finally {
       setLoading(false);
     }
@@ -85,85 +108,86 @@ export default function Search() {
 
   const getSkillBadge = (level: SkillLevel) => {
     const badges = {
-      all: { emoji: '🌟', label: 'All', color: Colors.primary },
-      beginner: { emoji: '🟢', label: 'Beginner', color: '#10b981' },
-      intermediate: { emoji: '🟡', label: 'Intermediate', color: '#f59e0b' },
-      advanced: { emoji: '🔴', label: 'Advanced', color: '#ef4444' },
+      all: { emoji: "🌟", label: "All", color: Colors.primary },
+      beginner: { emoji: "🟢", label: "Beginner", color: "#10b981" },
+      intermediate: { emoji: "🟡", label: "Intermediate", color: "#f59e0b" },
+      advanced: { emoji: "🔴", label: "Advanced", color: "#ef4444" },
     };
     return badges[level];
   };
 
   const getStatusBadge = (status: string) => {
-    if (status === 'open') return { text: 'Open', color: Colors.success };
-    if (status === 'full') return { text: 'Full', color: Colors.error };
-    if (status === 'completed') return { text: 'Completed', color: Colors.gray600 };
+    if (status === "open") return { text: "Open", color: Colors.success };
+    if (status === "full") return { text: "Full", color: Colors.error };
+    if (status === "completed")
+      return { text: "Completed", color: Colors.gray600 };
     return { text: status, color: Colors.gray500 };
   };
 
   const getFilterLabel = (f: typeof filter) => {
     const labels = {
-      upcoming: 'Upcoming',
-      past: 'Past',
-      all: 'All',
-      open: 'Open',
+      upcoming: "Upcoming",
+      past: "Past",
+      all: "All",
+      open: "Open",
     };
     return labels[f];
   };
 
   const getEmptyMessage = () => {
-    if (filter === 'past') return 'Nog geen wedstrijden in het verleden';
-    if (filter === 'open') return 'Geen open wedstrijden op dit moment';
-    return 'Maak een wedstrijd aan via Aanmaken!';
+    if (filter === "past") return "No past matches yet.";
+    if (filter === "open") return "No open matches at this time.";
+    return "Create a match via Create!";
   };
 
   return (
     <View style={styles.container}>
-      {/* Header */}
-      <LinearGradient
-        colors={[Colors.primary, Colors.primaryDark]}
-        style={styles.header}
-      >
-        <Text style={styles.headerTitle}>Find Matches</Text>
-        <Text style={styles.headerSubtitle}>
-          {filter === 'past' ? 'View your match history' : 'Join a game near you'}
-        </Text>
-      </LinearGradient>
-
-      {/* Filters */}
-      <View style={styles.filters}>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-          {(['upcoming', 'past', 'all', 'open'] as const).map((f) => (
-            <TouchableOpacity
-              key={f}
-              style={[
-                styles.filterChip,
-                filter === f && styles.filterChipActive,
-              ]}
-              onPress={() => setFilter(f)}
-            >
-              <Text style={[
-                styles.filterText,
-                filter === f && styles.filterTextActive,
-              ]}>
-                {getFilterLabel(f)}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-      </View>
-
-      {/* Matches List */}
       <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.listContent}
+        contentContainerStyle={styles.content}
         refreshControl={
           <RefreshControl refreshing={loading} onRefresh={loadMatches} />
         }
       >
+        <LinearGradient
+          colors={[Colors.primary, Colors.primaryDark]}
+          style={styles.header}
+        >
+          <Text style={styles.headerTitle}>Find Matches</Text>
+          <Text style={styles.headerSubtitle}>
+            {filter === "past"
+              ? "View your match history"
+              : "Join a game near you"}
+          </Text>
+        </LinearGradient>
+
+        <View style={styles.filters}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+            {(["upcoming", "past", "all", "open"] as const).map((f) => (
+              <TouchableOpacity
+                key={f}
+                style={[
+                  styles.filterChip,
+                  filter === f && styles.filterChipActive,
+                ]}
+                onPress={() => setFilter(f)}
+              >
+                <Text
+                  style={[
+                    styles.filterText,
+                    filter === f && styles.filterTextActive,
+                  ]}
+                >
+                  {getFilterLabel(f)}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
+
         {matches.length === 0 ? (
           <View style={styles.emptyState}>
             <Text style={styles.emptyEmoji}>
-              {filter === 'past' ? '📜' : '⚽'}
+              {filter === "past" ? "📜" : "⚽"}
             </Text>
             <Text style={styles.emptyTitle}>No matches found</Text>
             <Text style={styles.emptyText}>{getEmptyMessage()}</Text>
@@ -173,40 +197,52 @@ export default function Search() {
             const skill = getSkillBadge(match.skillLevel);
             const status = getStatusBadge(match.status);
             const isFull = match.currentPlayers >= match.maxPlayers;
-            const isPast = filter === 'past';
+            const isPast = filter === "past";
 
             return (
               <TouchableOpacity
                 key={match.id}
                 activeOpacity={0.7}
-                onPress={() => router.push({ pathname: '/match/[id]', params: { id: match.id } })}
+                onPress={() =>
+                  router.push({
+                    pathname: "/match/[id]",
+                    params: { id: match.id },
+                  })
+                }
               >
-                <Card style={[
-                  styles.matchCard,
-                  isPast ? styles.matchCardPast:null,
-                ]}>
-                  {/* Header Row */}
+                <Card
+                  style={[
+                    styles.matchCard,
+                    isPast ? styles.matchCardPast : null,
+                  ]}
+                >
                   <View style={styles.matchHeader}>
-                    <Text style={[
-                      styles.matchTitle,
-                      isPast ? styles.matchTitlePast:null,
-                    ]}>
+                    <Text
+                      style={[
+                        styles.matchTitle,
+                        isPast ? styles.matchTitlePast : null,
+                      ]}
+                    >
                       {match.title}
                     </Text>
-                    <View style={[styles.statusBadge, { backgroundColor: status.color }]}>
+                    <View
+                      style={[
+                        styles.statusBadge,
+                        { backgroundColor: status.color },
+                      ]}
+                    >
                       <Text style={styles.statusText}>{status.text}</Text>
                     </View>
                   </View>
 
-                  {/* Info Row */}
                   <View style={styles.matchInfo}>
                     <View style={styles.infoItem}>
                       <Text style={styles.infoIcon}>📅</Text>
                       <Text style={styles.infoText}>
-                        {match.date.toLocaleDateString('en-US', { 
-                          month: 'short', 
-                          day: 'numeric',
-                          year: isPast ? 'numeric' : undefined,
+                        {match.date.toLocaleDateString("en-US", {
+                          month: "short",
+                          day: "numeric",
+                          year: isPast ? "numeric" : undefined,
                         })}
                       </Text>
                     </View>
@@ -224,10 +260,14 @@ export default function Search() {
                     </View>
                   </View>
 
-                  {/* Footer Row */}
                   <View style={styles.matchFooter}>
                     <View style={styles.footerLeft}>
-                      <View style={[styles.skillBadge, { backgroundColor: skill.color }]}>
+                      <View
+                        style={[
+                          styles.skillBadge,
+                          { backgroundColor: skill.color },
+                        ]}
+                      >
                         <Text style={styles.skillText}>
                           {skill.emoji} {skill.label}
                         </Text>
@@ -240,7 +280,9 @@ export default function Search() {
                       </View>
                     </View>
 
-                    <Text style={styles.organizerText}>by {match.createdByName}</Text>
+                    <Text style={styles.organizerText}>
+                      by {match.createdByName}
+                    </Text>
                   </View>
 
                   {isFull && !isPast && (
@@ -263,10 +305,22 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: Colors.background,
   },
+  content: {
+    paddingTop: 80,
+    paddingBottom: 120,
+    paddingHorizontal: Spacing.lg,
+  },
   header: {
-    padding: Spacing.lg,
-    paddingTop: Spacing.xxl,
-    paddingBottom: Spacing.xl,
+    paddingVertical: Spacing.xl,
+    marginHorizontal: -Spacing.lg,
+    paddingHorizontal: Spacing.lg,
+    marginBottom: Spacing.lg,
+  },
+  sectionLabel: {
+    ...Typography.h3,
+    color: Colors.gray900,
+    marginTop: Spacing.lg,
+    marginBottom: Spacing.md,
   },
   headerTitle: {
     ...Typography.h1,
@@ -275,11 +329,11 @@ const styles = StyleSheet.create({
   },
   headerSubtitle: {
     ...Typography.body,
-    color: 'rgba(255, 255, 255, 0.9)',
+    color: "rgba(255, 255, 255, 0.9)",
   },
   filters: {
     paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
+    marginBottom: Spacing.md,
   },
   filterChip: {
     backgroundColor: Colors.white,
@@ -297,20 +351,13 @@ const styles = StyleSheet.create({
   filterText: {
     ...Typography.body,
     color: Colors.gray700,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   filterTextActive: {
     color: Colors.white,
   },
-  scrollView: {
-    flex: 1,
-  },
-  listContent: {
-    padding: Spacing.lg,
-    paddingTop: 0,
-  },
   emptyState: {
-    alignItems: 'center',
+    alignItems: "center",
     paddingVertical: Spacing.xxl * 2,
   },
   emptyEmoji: {
@@ -325,20 +372,20 @@ const styles = StyleSheet.create({
   emptyText: {
     ...Typography.body,
     color: Colors.gray500,
-    textAlign: 'center',
+    textAlign: "center",
   },
   matchCard: {
     marginBottom: Spacing.md,
-    position: 'relative',
+    position: "relative",
   },
   matchCardPast: {
     opacity: 0.7,
     backgroundColor: Colors.gray50,
   },
   matchHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
     marginBottom: Spacing.sm,
   },
   matchTitle: {
@@ -358,17 +405,17 @@ const styles = StyleSheet.create({
   statusText: {
     ...Typography.tiny,
     color: Colors.white,
-    fontWeight: '700',
+    fontWeight: "700",
   },
   matchInfo: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+    flexDirection: "row",
+    flexWrap: "wrap",
     gap: Spacing.sm,
     marginBottom: Spacing.sm,
   },
   infoItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     backgroundColor: Colors.gray50,
     paddingHorizontal: Spacing.sm,
     paddingVertical: 4,
@@ -383,16 +430,16 @@ const styles = StyleSheet.create({
     color: Colors.gray700,
   },
   matchFooter: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     paddingTop: Spacing.sm,
     borderTopWidth: 1,
     borderTopColor: Colors.gray100,
   },
   footerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: Spacing.sm,
   },
   skillBadge: {
@@ -403,7 +450,7 @@ const styles = StyleSheet.create({
   skillText: {
     ...Typography.tiny,
     color: Colors.white,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   playersInfo: {
     backgroundColor: Colors.gray100,
@@ -414,26 +461,26 @@ const styles = StyleSheet.create({
   playersText: {
     ...Typography.small,
     color: Colors.gray700,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   organizerText: {
     ...Typography.tiny,
     color: Colors.gray500,
   },
   fullOverlay: {
-    position: 'absolute',
+    position: "absolute",
     top: 0,
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: "rgba(0, 0, 0, 0.7)",
+    justifyContent: "center",
+    alignItems: "center",
     borderRadius: BorderRadius.lg,
   },
   fullText: {
     ...Typography.h3,
     color: Colors.white,
-    fontWeight: '700',
+    fontWeight: "700",
   },
 });
