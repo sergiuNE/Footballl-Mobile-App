@@ -26,8 +26,8 @@ const labels: Record<string, string> = {
   home: "Home",
   search: "Search",
   create: "Create",
-  reserve: "Reserve",
-  notifications: "Notifications",
+  reserve: "Book",
+  notifications: "Inbox",
   profile: "Profile",
 };
 

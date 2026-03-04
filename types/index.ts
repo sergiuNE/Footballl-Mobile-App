@@ -1,20 +1,20 @@
-export type Formation = '4-3-3' | '4-4-2' | '3-5-2' | '4-2-3-1';
+export type Formation = "4-3-3" | "4-4-2" | "3-5-2" | "4-2-3-1";
 
-export type Position = 
-  | 'GK'  
-  | 'LB' 
-  | 'CB1' 
-  | 'CB2' 
-  | 'RB'  
-  | 'LM'  
-  | 'CM1' 
-  | 'CM2' 
-  | 'CM3' 
-  | 'RM'  
-  | 'LW'  
-  | 'ST1' 
-  | 'ST2'
-  | 'RW'; 
+export type Position =
+  | "GK"
+  | "LB"
+  | "CB1"
+  | "CB2"
+  | "RB"
+  | "LM"
+  | "CM1"
+  | "CM2"
+  | "CM3"
+  | "RM"
+  | "LW"
+  | "ST1"
+  | "ST2"
+  | "RW";
 
 export type Player = {
   id: string;
@@ -37,7 +37,7 @@ export type User = {
   name: string;
   email: string;
   rating: number;
-  positions: string[];  // Favoriete positions
+  positions: string[]; // Favoriete positions
   preferredFormation: Formation;
   matchesPlayed?: number;
   createdAt: Date;
@@ -55,8 +55,8 @@ export type Match = {
   maxPlayers: number;
   currentPlayers: number;
   formation: Formation;
-  skillLevel: 'beginner' | 'intermediate' | 'advanced' | 'all';
-  status: 'open' | 'full' | 'completed' | 'cancelled';
+  skillLevel: "beginner" | "intermediate" | "advanced" | "all";
+  status: "open" | "full" | "completed" | "cancelled";
   players: Player[];
   createdAt: Date;
 };
@@ -67,6 +67,7 @@ export type UserProfile = {
   email?: string;
   rating?: number;
   matchesPlayed?: number;
+  positions?: string[];
 };
 export type ChatMessage = {
   id: string;

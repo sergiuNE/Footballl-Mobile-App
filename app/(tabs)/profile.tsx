@@ -8,7 +8,7 @@ import {
 } from "react-native";
 import { useState, useEffect } from "react";
 import { signOut } from "firebase/auth";
-import { doc, getDoc, updateDoc } from "firebase/firestore";
+import { doc, updateDoc, onSnapshot } from "firebase/firestore";
 import { auth, db } from "../../config/firebase";
 import { router } from "expo-router";
 import Card from "../../components/Card";
@@ -34,26 +34,28 @@ export default function Profile() {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    loadUserData();
-  }, []);
-
-  const loadUserData = async () => {
     if (!auth.currentUser) return;
 
-    try {
-      const userDoc = await getDoc(doc(db, "users", auth.currentUser.uid));
-      if (userDoc.exists()) {
-        const userData = { uid: userDoc.id, ...userDoc.data() } as User;
-        setUser(userData);
-        setName(userData.name);
-        setSelectedPositions(userData.positions || []);
-      }
-    } catch (error) {
-      console.error("Error loading user:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
+    // Real-time listener for user data
+    const unsubscribe = onSnapshot(
+      doc(db, "users", auth.currentUser.uid),
+      (docSnap) => {
+        if (docSnap.exists()) {
+          const userData = { uid: docSnap.id, ...docSnap.data() } as User;
+          setUser(userData);
+          setName(userData.name);
+          setSelectedPositions(userData.positions || []);
+          setLoading(false);
+        }
+      },
+      (error) => {
+        console.error("Error loading user:", error);
+        setLoading(false);
+      },
+    );
+
+    return () => unsubscribe();
+  }, [auth.currentUser]);
 
   const handleTogglePosition = (position: string) => {
     if (selectedPositions.includes(position)) {
@@ -76,7 +78,6 @@ export default function Profile() {
         positions: selectedPositions,
       });
 
-      await loadUserData();
       setEditing(false);
       Alert.alert("Success", "Profile updated!");
     } catch (error) {
@@ -119,7 +120,6 @@ export default function Profile() {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      {/* Header met Avatar */}
       <LinearGradient
         colors={[Colors.primary, Colors.primaryDark]}
         style={styles.header}
@@ -127,23 +127,22 @@ export default function Profile() {
         <View style={styles.avatarContainer}>
           <View style={styles.avatar}>
             <Text style={styles.avatarText}>
-              {user.name.charAt(0).toUpperCase()}
+              {user.name ? user.name.charAt(0).toUpperCase() : "?"}
             </Text>
           </View>
         </View>
 
         {!editing && (
           <>
-            <Text style={styles.headerName}>{user.name}</Text>
-            <Text style={styles.headerEmail}>{user.email}</Text>
+            <Text style={styles.headerName}>{user.name || "User"}</Text>
+            <Text style={styles.headerEmail}>{user.email || ""}</Text>
           </>
         )}
       </LinearGradient>
 
-      {/* Stats Cards */}
       <View style={styles.statsContainer}>
         <Card style={styles.statCard}>
-          <Text style={styles.statValue}>{user.rating}</Text>
+          <Text style={styles.statValue}>{user.rating ?? 0}</Text>
           <Text style={styles.statLabel}>⭐ Rating</Text>
         </Card>
 
@@ -153,12 +152,11 @@ export default function Profile() {
         </Card>
 
         <Card style={styles.statCard}>
-          <Text style={styles.statValue}>{user.positions.length}</Text>
+          <Text style={styles.statValue}>{user.positions?.length || 0}</Text>
           <Text style={styles.statLabel}>📍 Positions</Text>
         </Card>
       </View>
 
-      {/* Edit Mode */}
       {editing ? (
         <Card>
           <Text style={styles.sectionTitle}>Edit Profile</Text>
@@ -196,7 +194,6 @@ export default function Profile() {
         </Card>
       ) : (
         <>
-          {/* Info Card */}
           <Card>
             <View style={styles.infoHeader}>
               <Text style={styles.sectionTitle}>Profile Info</Text>
@@ -226,7 +223,8 @@ export default function Profile() {
             <View style={styles.infoRow}>
               <Text style={styles.infoLabel}>Positions</Text>
               <View style={styles.positionBadges}>
-                {user.positions.length > 0 ? (
+                {/* safety checks */}
+                {user.positions && user.positions.length > 0 ? (
                   user.positions.map((pos) => (
                     <View key={pos} style={styles.positionBadge}>
                       <Text style={styles.positionBadgeText}>{pos}</Text>
@@ -241,7 +239,6 @@ export default function Profile() {
             </View>
           </Card>
 
-          {/* Actions */}
           <View style={styles.actions}>
             <Button
               title="Log out"

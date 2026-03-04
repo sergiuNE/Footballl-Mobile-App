@@ -38,7 +38,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import Card from "../../components/Card";
 import { UserProfile } from "@/types";
 import { ChatMessage } from "@/types";
-
+import { sendNotificationToUser } from "../services/notifications";
 
 export default function UserProfileScreen() {
   const { id: userId } = useLocalSearchParams<{ id: string }>();
@@ -73,6 +73,7 @@ export default function UserProfileScreen() {
             email: d.email,
             rating: d.rating ?? 5,
             matchesPlayed: d.matchesPlayed ?? 0,
+            positions: d.positions ?? [],
           });
         } else {
           setUser(null);
@@ -114,9 +115,12 @@ export default function UserProfileScreen() {
   const handleChallenge = async (challengeType: "penalty_shootout" | "1v1") => {
     setShowChallengeType(false);
     if (!currentUserId || !userId || !user) return;
+
     try {
       const me = await getDoc(doc(db, "users", currentUserId));
       const fromUserName = me.exists() ? me.data().name : "Someone";
+
+      // Create challenge
       await addDoc(collection(db, "challenges"), {
         fromUserId: currentUserId,
         fromUserName,
@@ -125,15 +129,34 @@ export default function UserProfileScreen() {
         status: "pending",
         createdAt: new Date(),
       });
+
+      // Send notification
+      const challengeLabel =
+        challengeType === "penalty_shootout" ? "Penalty Shootout" : "1v1 Match";
+
+      await sendNotificationToUser(
+        userId,
+        "New Challenge!",
+        `${fromUserName} challenged you to ${challengeLabel}`,
+        {
+          type: "challenge",
+          challengeType,
+          fromUserId: currentUserId,
+          fromUserName,
+        },
+      );
+
       setChallengeSent(true);
       Alert.alert("Sent!", "Challenge sent! The player will be notified.");
-    } catch {
+    } catch (error) {
+      console.error("Challenge error:", error);
       Alert.alert("Error", "Could not send challenge.");
     }
   };
 
   const handleSubmitRating = async () => {
     if (!currentUserId || !userId || !user) return;
+
     try {
       const userRef = doc(db, "users", userId);
       const u = await getDoc(userRef);
@@ -141,35 +164,75 @@ export default function UserProfileScreen() {
       const count = u.data()?.ratingCount ?? 0;
       const newRating =
         count > 0 ? (current * count + ratingValue) / (count + 1) : ratingValue;
+
+      // Update rating
       await updateDoc(userRef, {
         rating: Math.round(newRating * 10) / 10,
         ratingCount: count + 1,
       });
+
+      // Send notification
+      const myDoc = await getDoc(doc(db, "users", currentUserId));
+      const myName = myDoc.data()?.name ?? "Someone";
+
+      await sendNotificationToUser(
+        userId,
+        "New Rating!",
+        `${myName} gave you a rating of (${ratingValue}/10)`,
+        {
+          type: "rating",
+          fromUserId: currentUserId,
+          fromUserName: myName,
+          rating: ratingValue,
+          newAverage: Math.round(newRating * 10) / 10,
+        },
+      );
+
       setUser((prev) => (prev ? { ...prev, rating: newRating } : null));
       setShowRating(false);
-      Alert.alert("Thank you!", "Rating saved.");
-    } catch {
+      Alert.alert("Thank you!", "Rating saved and user notified.");
+    } catch (error) {
+      console.error("Rating error:", error);
       Alert.alert("Error", "Could not save rating.");
     }
   };
 
   const sendMessage = async () => {
     if (!newMessage.trim() || !currentUserId || !userId) return;
+
     const myId = currentUserId;
     const otherId = userId;
     const chatId = [myId, otherId].sort().join("_");
-    const myDoc = await getDoc(doc(db, "users", myId));
-    const senderName = myDoc.data()?.name ?? "Me";
+
     setSending(true);
     try {
+      const myDoc = await getDoc(doc(db, "users", myId));
+      const senderName = myDoc.data()?.name ?? "Someone";
+
+      // Send message
       await addDoc(collection(db, "chats", chatId, "messages"), {
         text: newMessage.trim(),
         senderId: myId,
         senderName,
         createdAt: serverTimestamp(),
       });
+
+      // Send notification
+      await sendNotificationToUser(
+        otherId,
+        `💬 ${senderName}`,
+        newMessage.trim(),
+        {
+          type: "message",
+          senderId: myId,
+          senderName,
+          chatId,
+        },
+      );
+
       setNewMessage("");
-    } catch {
+    } catch (error) {
+      console.error("Message error:", error);
       Alert.alert("Error", "Could not send message.");
     } finally {
       setSending(false);
@@ -277,6 +340,37 @@ export default function UserProfileScreen() {
                 </Text>
                 <Text style={styles.statLabel}>Rating</Text>
               </View>
+            </View>
+          </Card>
+
+          {/* Positions Card */}
+          <Card style={styles.positionsCard}>
+            <Text style={styles.sectionTitle}>Favorite Positions</Text>
+            <View style={styles.positionBadges}>
+              {user.positions && user.positions.length > 0 ? (
+                user.positions.map((pos) => (
+                  <View key={pos} style={styles.positionBadge}>
+                    <Ionicons
+                      name="football-outline"
+                      size={16}
+                      color={Colors.white}
+                      style={{ marginRight: 4 }}
+                    />
+                    <Text style={styles.positionBadgeText}>{pos}</Text>
+                  </View>
+                ))
+              ) : (
+                <View style={styles.noPositionsContainer}>
+                  <Ionicons
+                    name="remove-circle-outline"
+                    size={24}
+                    color={Colors.gray400}
+                  />
+                  <Text style={styles.noPositionsText}>
+                    No positions selected
+                  </Text>
+                </View>
+              )}
             </View>
           </Card>
 
@@ -512,19 +606,21 @@ const styles = StyleSheet.create({
     borderBottomColor: Colors.gray200,
   },
   headerGradient: {
-    paddingHorizontal: Spacing.lg,
+    marginTop: 80,
     paddingVertical: Spacing.xl,
+    paddingHorizontal: Spacing.lg,
     flexDirection: "row",
     alignItems: "center",
   },
   chatHeader: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: Spacing.md,
+    paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.md,
     backgroundColor: Colors.white,
     borderBottomWidth: 1,
     borderBottomColor: Colors.gray200,
+    paddingTop: Spacing.xxl,
   },
   chatHeaderInfo: { flex: 1 },
   chatHeaderTitle: {
@@ -552,15 +648,17 @@ const styles = StyleSheet.create({
   },
   scroll: { flex: 1 },
   scrollContent: {
-    padding: Spacing.lg,
+    paddingHorizontal: Spacing.lg,
     paddingBottom: Spacing.xxl,
   },
   profileCard: {
+    marginTop: Spacing.md,
     alignItems: "center",
     marginBottom: Spacing.md,
     paddingVertical: Spacing.xl,
   },
   avatarContainer: {
+    marginTop: Spacing.md,
     marginBottom: Spacing.md,
     ...Shadows.large,
   },
@@ -838,5 +936,37 @@ const styles = StyleSheet.create({
   },
   sendBtnDisabled: {
     opacity: 0.5,
+  },
+  positionsCard: {
+    marginBottom: Spacing.md,
+  },
+  positionBadges: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: Spacing.xs,
+  },
+  positionBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: Colors.primary,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderRadius: BorderRadius.full,
+  },
+  positionBadgeText: {
+    ...Typography.small,
+    color: Colors.white,
+    fontWeight: "600",
+  },
+  noPositionsContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.sm,
+    paddingVertical: Spacing.md,
+  },
+  noPositionsText: {
+    ...Typography.body,
+    color: Colors.gray500,
+    fontStyle: "italic",
   },
 });

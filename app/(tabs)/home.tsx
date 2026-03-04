@@ -180,7 +180,7 @@ export default function Home() {
             onPress={() => router.push(`/match/${nextMatch.id}` as any)}
             activeOpacity={0.7}
           >
-            <Text style={styles.infoTitle}>📅 Match Info</Text>
+            <Text style={styles.infoTitle}>Match Info</Text>
             <Text style={styles.infoText}>
               {nextMatch.date.toLocaleDateString("en-US", {
                 weekday: "long",

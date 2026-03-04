@@ -332,7 +332,7 @@ const styles = StyleSheet.create({
     color: "rgba(255, 255, 255, 0.9)",
   },
   filters: {
-    paddingHorizontal: Spacing.lg,
+    
     marginBottom: Spacing.md,
   },
   filterChip: {

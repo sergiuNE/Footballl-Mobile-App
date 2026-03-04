@@ -10,12 +10,48 @@ export default function TabsLayout() {
         header: () => null,
       }}
     >
-      <Tabs.Screen name="home" />
-      <Tabs.Screen name="search" />
-      <Tabs.Screen name="create" />
-      <Tabs.Screen name="reserve" />
-      <Tabs.Screen name="notifications" />
-      <Tabs.Screen name="profile" />
+      <Tabs.Screen
+        name="home"
+        options={{
+          title: "Home",
+          tabBarLabel: "Home",
+        }}
+      />
+      <Tabs.Screen
+        name="search"
+        options={{
+          title: "Search",
+          tabBarLabel: "Search",
+        }}
+      />
+      <Tabs.Screen
+        name="create"
+        options={{
+          title: "Create",
+          tabBarLabel: "Create",
+        }}
+      />
+      <Tabs.Screen
+        name="reserve"
+        options={{
+          title: "Reserve",
+          tabBarLabel: "Book",
+        }}
+      />
+      <Tabs.Screen
+        name="notifications"
+        options={{
+          title: "Notifications",
+          tabBarLabel: "Inbox",
+        }}
+      />
+      <Tabs.Screen
+        name="profile"
+        options={{
+          title: "Profile",
+          tabBarLabel: "Profile",
+        }}
+      />
     </Tabs>
   );
 }

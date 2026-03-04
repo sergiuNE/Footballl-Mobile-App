@@ -128,7 +128,7 @@ export default function MatchDetailScreen() {
 
   const confirmJoin = async () => {
     if (!user || !match?.id || !canJoin) return;
-    
+
     if (!selectedPosition) {
       Alert.alert("Error", "Please select a position first!");
       return;
@@ -136,14 +136,14 @@ export default function MatchDetailScreen() {
 
     const userDoc = await getDoc(doc(db, "users", user.uid));
     const userName = (userDoc.data()?.name as string) || user.email || "Player";
-    
+
     setActionLoading(true);
     try {
       await updateDoc(doc(db, "matches", match.id), {
-        players: arrayUnion({ 
-          userId: user.uid, 
+        players: arrayUnion({
+          userId: user.uid,
           userName,
-          position: selectedPosition 
+          position: selectedPosition,
         }),
       });
       await loadMatch();
@@ -570,8 +570,9 @@ const styles = StyleSheet.create({
     borderBottomColor: Colors.gray200,
   },
   headerGradient: {
+    marginTop: 80,
     paddingHorizontal: Spacing.lg,
-    paddingTop: Spacing.md,
+    paddingTop: Spacing.xxl,
     paddingBottom: Spacing.xl,
     flexDirection: "row",
     alignItems: "center",
@@ -592,7 +593,8 @@ const styles = StyleSheet.create({
   },
   scroll: { flex: 1 },
   scrollContent: {
-    padding: Spacing.lg,
+    paddingTop: Spacing.lg,
+    paddingHorizontal: Spacing.lg,
     paddingBottom: Spacing.xxl,
   },
   infoCard: { marginBottom: Spacing.md },

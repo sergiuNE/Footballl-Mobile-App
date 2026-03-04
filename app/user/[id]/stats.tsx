@@ -105,7 +105,7 @@ export default function UserStatsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.background },
+  container: { flex: 1, backgroundColor: Colors.background, marginTop: 80 },
   centered: { flex: 1, justifyContent: "center", alignItems: "center" },
   header: {
     paddingHorizontal: Spacing.lg,
@@ -126,10 +126,11 @@ const styles = StyleSheet.create({
   },
   scroll: { flex: 1 },
   scrollContent: {
-    padding: Spacing.lg,
     paddingBottom: Spacing.xxl,
+    paddingHorizontal: Spacing.lg,
   },
   statCard: {
+    marginTop: Spacing.md,
     alignItems: "center",
     paddingVertical: Spacing.xl,
     marginBottom: Spacing.md,
