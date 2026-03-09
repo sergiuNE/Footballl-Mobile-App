@@ -41,6 +41,9 @@ export type User = {
   preferredFormation: Formation;
   matchesPlayed?: number;
   createdAt: Date;
+  photoURL?: string; // Profile photo from camera roll
+  isOnline?: boolean; // Online status
+  lastSeen?: Date; // Last time user was active
 };
 
 // For creating a match
@@ -68,6 +71,9 @@ export type UserProfile = {
   rating?: number;
   matchesPlayed?: number;
   positions?: string[];
+  photoURL?: string;
+  isOnline?: boolean;
+  lastSeen?: Date;
 };
 export type ChatMessage = {
   id: string;

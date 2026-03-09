@@ -1,9 +1,11 @@
 import { Stack } from "expo-router";
 import { useEffect, useRef } from "react";
+import { AppState } from "react-native";
 import * as Notifications from "expo-notifications";
 import { registerForPushNotificationsAsync } from "./services/notifications";
 import { auth, db } from "../config/firebase";
 import { collection, query, where, onSnapshot, limit } from "firebase/firestore";
+import { setUserOnline, setUserOffline } from "./services/presence";
 
 export default function RootLayout() {
   const notificationListener = useRef<Notifications.Subscription | null>(null);
@@ -13,6 +15,9 @@ export default function RootLayout() {
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged((user) => {
       if (user) {
+        // Set user online when they log in
+        setUserOnline(user.uid);
+
         registerForPushNotificationsAsync(user.uid);
         
         // Listen for NEW notifications in Firestore
@@ -54,6 +59,22 @@ export default function RootLayout() {
         });
 
         return () => unsubscribeNotifications();
+      } else {
+        // User logged out - presence will be set offline on login
+      }
+    });
+
+    // Handle app state changes (foreground/background)
+    const appStateSubscription = AppState.addEventListener("change", (nextAppState) => {
+      const userId = auth.currentUser?.uid;
+      if (!userId) return;
+
+      if (nextAppState === "active") {
+        // App came to foreground
+        setUserOnline(userId);
+      } else if (nextAppState === "background" || nextAppState === "inactive") {
+        // App went to background
+        setUserOffline(userId);
       }
     });
 
@@ -82,7 +103,14 @@ export default function RootLayout() {
       });
 
     return () => {
+      // Set user offline when component unmounts
+      const userId = auth.currentUser?.uid;
+      if (userId) {
+        setUserOffline(userId);
+      }
+
       unsubscribe();
+      appStateSubscription.remove();
       notificationListener.current?.remove();
       responseListener.current?.remove();
     };
