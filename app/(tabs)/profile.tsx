@@ -5,11 +5,13 @@ import {
   ScrollView,
   TouchableOpacity,
   Alert,
+  Image,
+  ActivityIndicator,
 } from "react-native";
 import { useState, useEffect } from "react";
 import { signOut } from "firebase/auth";
 import { doc, updateDoc, onSnapshot } from "firebase/firestore";
-import { auth, db } from "../../config/firebase";
+import { auth, db, storage } from "../../config/firebase";
 import { router } from "expo-router";
 import Card from "../../components/Card";
 import Button from "../../components/Button";
@@ -24,6 +26,9 @@ import {
 } from "../../constants/theme";
 import { LinearGradient } from "expo-linear-gradient";
 import { User } from "../../types";
+//import * as ImagePicker from "expo-image-picker";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { Ionicons } from "@expo/vector-icons";
 
 export default function Profile() {
   const [user, setUser] = useState<User | null>(null);
@@ -32,6 +37,7 @@ export default function Profile() {
   const [name, setName] = useState("");
   const [selectedPositions, setSelectedPositions] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
 
   useEffect(() => {
     if (!auth.currentUser) return;
@@ -62,6 +68,66 @@ export default function Profile() {
       setSelectedPositions(selectedPositions.filter((p) => p !== position));
     } else {
       setSelectedPositions([...selectedPositions, position]);
+    }
+  };
+
+  /*const handlePickImage = async () => {
+    try {
+      // Request permission
+      const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      
+      if (!permissionResult.granted) {
+        Alert.alert("Permission Required", "Please allow access to your photos to upload a profile picture.");
+        return;
+      }
+
+      // Launch image picker
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: "images" as any,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.5,
+      });
+
+      if (!result.canceled && result.assets[0]) {
+        await uploadPhoto(result.assets[0].uri);
+      }
+    } catch (error) {
+      console.error("Error picking image:", error);
+      Alert.alert("Error", "Could not pick image.");
+    }
+  };*/
+
+  const uploadPhoto = async (uri: string) => {
+    if (!auth.currentUser) return;
+
+    setUploadingPhoto(true);
+    try {
+      // Convert URI to blob
+      const response = await fetch(uri);
+      const blob = await response.blob();
+
+      // Create a reference to Firebase Storage
+      const fileName = `profile_photos/${auth.currentUser.uid}_${Date.now()}.jpg`;
+      const storageRef = ref(storage, fileName);
+
+      // Upload the file
+      await uploadBytes(storageRef, blob);
+
+      // Get download URL
+      const downloadURL = await getDownloadURL(storageRef);
+
+      // Update user document
+      await updateDoc(doc(db, "users", auth.currentUser.uid), {
+        photoURL: downloadURL,
+      });
+
+      Alert.alert("Success", "Profile photo updated!");
+    } catch (error) {
+      console.error("Error uploading photo:", error);
+      Alert.alert("Error", "Could not upload photo.");
+    } finally {
+      setUploadingPhoto(false);
     }
   };
 
@@ -125,17 +191,37 @@ export default function Profile() {
         style={styles.header}
       >
         <View style={styles.avatarContainer}>
-          <View style={styles.avatar}>
-            <Text style={styles.avatarText}>
-              {user.name ? user.name.charAt(0).toUpperCase() : "?"}
-            </Text>
-          </View>
+          <TouchableOpacity 
+            style={styles.avatar}
+            //onPress={handlePickImage}
+            disabled={uploadingPhoto}
+          >
+            {uploadingPhoto ? (
+              <ActivityIndicator size="large" color={Colors.primary} />
+            ) : user?.photoURL ? (
+              <Image 
+                source={{ uri: user.photoURL }} 
+                style={styles.avatarImage}
+              />
+            ) : (
+              <Text style={styles.avatarText}>
+                {user?.name ? user.name.charAt(0).toUpperCase() : "?"}
+              </Text>
+            )}
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={styles.cameraButton}
+            //onPress={handlePickImage}
+            disabled={uploadingPhoto}
+          >
+            <Ionicons name="camera" size={20} color={Colors.white} />
+          </TouchableOpacity>
         </View>
 
         {!editing && (
           <>
-            <Text style={styles.headerName}>{user.name || "User"}</Text>
-            <Text style={styles.headerEmail}>{user.email || ""}</Text>
+            <Text style={styles.headerName}>{user?.name || "User"}</Text>
+            <Text style={styles.headerEmail}>{user?.email || ""}</Text>
           </>
         )}
       </LinearGradient>
@@ -283,6 +369,7 @@ const styles = StyleSheet.create({
   },
   avatarContainer: {
     marginBottom: Spacing.md,
+    position: "relative",
   },
   avatar: {
     width: 100,
@@ -294,6 +381,26 @@ const styles = StyleSheet.create({
     borderWidth: 4,
     borderColor: "rgba(255, 255, 255, 0.3)",
     ...Shadows.large,
+    overflow: "hidden",
+  },
+  avatarImage: {
+    width: "100%",
+    height: "100%",
+    borderRadius: 50,
+  },
+  cameraButton: {
+    position: "absolute",
+    bottom: 0,
+    right: 0,
+    backgroundColor: Colors.primary,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 3,
+    borderColor: Colors.white,
+    ...Shadows.medium,
   },
   avatarText: {
     fontSize: 40,

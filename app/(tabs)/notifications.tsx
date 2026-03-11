@@ -17,7 +17,6 @@ import {
   doc,
   getDoc,
   updateDoc,
-  orderBy,
 } from "firebase/firestore";
 import { auth, db } from "../../config/firebase";
 import { router } from "expo-router";
@@ -58,10 +57,8 @@ export default function NotificationsScreen() {
       return;
     }
 
-    // tore userId to avoid null check issues
     const currentUserId = auth.currentUser.uid;
 
-    // Listen to challenges
     const challengesQuery = query(
       collection(db, "challenges"),
       where("toUserId", "==", currentUserId),
@@ -70,6 +67,12 @@ export default function NotificationsScreen() {
     const unsubscribeChallenges = onSnapshot(
       challengesQuery,
       async (snapshot) => {
+        // Check if user is still logged in
+        if (!auth.currentUser) {
+          console.log("User logged out - stopping challenge listener");
+          return;
+        }
+
         const challengeList: NotificationItem[] = [];
 
         for (const d of snapshot.docs) {
@@ -90,7 +93,6 @@ export default function NotificationsScreen() {
           });
         }
 
-        // Listen to general notifications
         const notificationsQuery = query(
           collection(db, "notifications"),
           where("userId", "==", currentUserId),
@@ -99,13 +101,21 @@ export default function NotificationsScreen() {
         const unsubscribeNotifications = onSnapshot(
           notificationsQuery,
           (notifSnap) => {
+            // Check if user is still logged in
+            if (!auth.currentUser) {
+              console.log("User logged out - stopping notification listener");
+              return;
+            }
+
             const notifList: NotificationItem[] = notifSnap.docs.map((d) => {
               const data = d.data();
+              const notifData = data.data || {};
+
               return {
                 id: d.id,
-                type: data.data?.type || "message",
-                fromUserId: data.data?.fromUserId || "",
-                fromUserName: data.data?.fromUserName || "Someone",
+                type: notifData.type || "message",
+                fromUserId: notifData.fromUserId || "",
+                fromUserName: notifData.fromUserName || "Someone",
                 title: data.title,
                 body: data.body,
                 read: data.read ?? false,
@@ -113,7 +123,6 @@ export default function NotificationsScreen() {
               };
             });
 
-            // Sort in code instead
             const allNotifs = [...challengeList, ...notifList].sort(
               (a, b) => b.createdAt.getTime() - a.createdAt.getTime(),
             );
@@ -122,9 +131,22 @@ export default function NotificationsScreen() {
             setLoading(false);
             setRefreshing(false);
           },
+          (error) => {
+            // Silently ignore permission errors (user logged out)
+            if (error.code !== "permission-denied") {
+              console.error("Notification list error:", error);
+            }
+          },
         );
 
         return () => unsubscribeNotifications();
+      },
+      (error) => {
+        // Silently ignore permission errors (user logged out)
+        if (error.code !== "permission-denied") {
+          console.error("Challenge list error:", error);
+        }
+        setLoading(false);
       },
     );
 
@@ -168,16 +190,16 @@ export default function NotificationsScreen() {
   };
 
   const handleNotificationPress = async (item: NotificationItem) => {
-    // Mark as read
     if (item.type !== "challenge" && !item.read) {
-      await updateDoc(doc(db, "notifications", item.id), { read: true });
+      try {
+        await updateDoc(doc(db, "notifications", item.id), { read: true });
+      } catch (error) {
+        console.error("Error marking as read:", error);
+      }
     }
 
-    // Navigate
-    if (item.type === "message" || item.type === "rating") {
-      router.push(`/user/${item.fromUserId}` as any);
-    } else if (item.type === "challenge") {
-      router.push(`/user/${item.fromUserId}` as any);
+    if (item.fromUserId) {
+      router.push(`/user/${item.fromUserId}`);
     }
   };
 
@@ -348,6 +370,7 @@ export default function NotificationsScreen() {
   );
 }
 
+// styles stay the same...
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
   content: {
@@ -414,7 +437,7 @@ const styles = StyleSheet.create({
   cardTitle: { ...Typography.body, color: Colors.gray900, fontWeight: "600" },
   cardName: { fontWeight: "700", color: Colors.primary },
   cardMeta: { ...Typography.small, color: Colors.gray600, marginTop: 4 },
-  cardTime: { ...Typography.tiny, color: Colors.gray400, marginTop: 2 },
+  cardTime: { ...Typography.small, color: Colors.gray400, marginTop: 2 },
   cardStatus: { ...Typography.small, marginTop: 4, fontWeight: "600" },
   cardStatusAccepted: { color: Colors.success },
   cardStatusDeclined: { color: Colors.gray500 },

@@ -94,11 +94,11 @@ export default function Create() {
         time: timeString,
         location: location.trim(),
         maxPlayers: playersCount,
-        currentPlayers: 1,
+        currentPlayers: 0,
         formation: "4-3-3",
         skillLevel,
         status: "open",
-        players: [{ userId: auth.currentUser.uid, userName }],
+        players: [],
         createdAt: new Date(),
       });
 

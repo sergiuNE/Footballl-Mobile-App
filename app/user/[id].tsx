@@ -10,6 +10,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   FlatList,
+  Image,
 } from "react-native";
 import { useLocalSearchParams, router } from "expo-router";
 import { useEffect, useState } from "react";
@@ -39,6 +40,7 @@ import Card from "../../components/Card";
 import { UserProfile } from "@/types";
 import { ChatMessage } from "@/types";
 import { sendNotificationToUser } from "../services/notifications";
+import { formatLastSeen } from "../services/presence";
 
 export default function UserProfileScreen() {
   const { id: userId } = useLocalSearchParams<{ id: string }>();
@@ -74,6 +76,9 @@ export default function UserProfileScreen() {
             rating: d.rating ?? 5,
             matchesPlayed: d.matchesPlayed ?? 0,
             positions: d.positions ?? [],
+            photoURL: d.photoURL,
+            isOnline: d.isOnline ?? false,
+            lastSeen: d.lastSeen?.toDate?.(),
           });
         } else {
           setUser(null);
@@ -287,7 +292,15 @@ export default function UserProfileScreen() {
           </TouchableOpacity>
           <View style={styles.chatHeaderInfo}>
             <Text style={styles.chatHeaderTitle}>{user.name}</Text>
-            <Text style={styles.chatHeaderSubtitle}>Online</Text>
+            <View style={styles.onlineStatusRow}>
+              <View style={[
+                styles.onlineIndicator,
+                user.isOnline && styles.onlineIndicatorActive
+              ]} />
+              <Text style={styles.chatHeaderSubtitle}>
+                {user.isOnline ? "Online" : `Offline • ${formatLastSeen(user.lastSeen)}`}
+              </Text>
+            </View>
           </View>
         </View>
       )}
@@ -300,16 +313,42 @@ export default function UserProfileScreen() {
           {/* Profile Header */}
           <Card style={styles.profileCard}>
             <View style={styles.avatarContainer}>
-              <LinearGradient
-                colors={[Colors.primary, Colors.primaryDark]}
-                style={styles.avatar}
-              >
-                <Text style={styles.avatarText}>
-                  {user.name.charAt(0).toUpperCase()}
-                </Text>
-              </LinearGradient>
+              {user.photoURL ? (
+                <View style={styles.avatarWithPhoto}>
+                  <Image 
+                    source={{ uri: user.photoURL }} 
+                    style={styles.avatarImage}
+                  />
+                  <View style={[
+                    styles.onlineStatusBadge,
+                    user.isOnline && styles.onlineStatusBadgeActive
+                  ]} />
+                </View>
+              ) : (
+                <LinearGradient
+                  colors={[Colors.primary, Colors.primaryDark]}
+                  style={styles.avatar}
+                >
+                  <Text style={styles.avatarText}>
+                    {user.name.charAt(0).toUpperCase()}
+                  </Text>
+                  <View style={[
+                    styles.onlineStatusBadge,
+                    user.isOnline && styles.onlineStatusBadgeActive
+                  ]} />
+                </LinearGradient>
+              )}
             </View>
             <Text style={styles.userName}>{user.name}</Text>
+            <View style={styles.statusRow}>
+              <View style={[
+                styles.onlineIndicatorSmall,
+                user.isOnline && styles.onlineIndicatorActive
+              ]} />
+              <Text style={styles.statusText}>
+                {user.isOnline ? "Online" : `Last seen ${formatLastSeen(user.lastSeen)}`}
+              </Text>
+            </View>
             <View style={styles.ratingRow}>
               <Ionicons name="star" size={20} color={Colors.warning} />
               <Text style={styles.ratingText}>
@@ -963,5 +1002,62 @@ const styles = StyleSheet.create({
     ...Typography.body,
     color: Colors.gray500,
     fontStyle: "italic",
+  },
+  avatarWithPhoto: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    borderWidth: 4,
+    borderColor: Colors.white,
+    position: "relative",
+  },
+  avatarImage: {
+    width: "100%",
+    height: "100%",
+    borderRadius: 50,
+  },
+  onlineStatusBadge: {
+    position: "absolute",
+    bottom: 2,
+    right: 2,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: Colors.gray400,
+    borderWidth: 3,
+    borderColor: Colors.white,
+  },
+  onlineStatusBadgeActive: {
+    backgroundColor: "#4CAF50",
+  },
+  statusRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginBottom: Spacing.xs,
+  },
+  onlineIndicatorSmall: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: Colors.gray400,
+  },
+  statusText: {
+    ...Typography.small,
+    color: Colors.gray600,
+  },
+  onlineStatusRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  onlineIndicator: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: Colors.gray400,
+  },
+  onlineIndicatorActive: {
+    backgroundColor: "#4CAF50",
   },
 });

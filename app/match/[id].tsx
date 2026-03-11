@@ -65,7 +65,7 @@ export default function MatchDetailScreen() {
         return;
       }
       const data = snap.data();
-      setMatch({
+      const matchData = {
         id: snap.id,
         ...data,
         title: data.title,
@@ -75,11 +75,59 @@ export default function MatchDetailScreen() {
         awayScore: data.awayScore,
         shotsOnTargetHome: data.shotsOnTargetHome,
         shotsOnTargetAway: data.shotsOnTargetAway,
-      } as Match);
-    } catch {
+      } as Match;
+
+      setMatch(matchData);
+
+      // Check if match is in the past and remove user automatically
+      await checkAndRemoveFromPastMatch(matchData);
+    } catch (error) {
+      console.error("Load match error:", error);
       setMatch(null);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const checkAndRemoveFromPastMatch = async (matchData: Match) => {
+    if (!user) return;
+
+    try {
+      const matchDate =
+        "seconds" in matchData.date
+          ? new Date((matchData.date as any).seconds * 1000)
+          : new Date(matchData.date);
+
+      const now = new Date();
+
+      // Check if match is in the past (more than 2 hours ago to account for match duration)
+      const isPast = matchDate.getTime() < now.getTime() - 2 * 60 * 60 * 1000;
+
+      if (isPast) {
+        const isUserInMatch = matchData.players.some(
+          (p) => p.userId === user.uid,
+        );
+
+        if (isUserInMatch) {
+          // Auto-remove user from past match
+          const updatedPlayers = matchData.players.filter(
+            (p) => p.userId !== user.uid,
+          );
+
+          await updateDoc(doc(db, "matches", matchData.id), {
+            players: updatedPlayers,
+            currentPlayers: updatedPlayers.length,
+          });
+
+          Alert.alert(
+            "Match Ended",
+            "This match has ended. You have been automatically removed.",
+            [{ text: "OK", onPress: () => router.back() }],
+          );
+        }
+      }
+    } catch (error) {
+      console.error("Auto-remove error:", error);
     }
   };
 
@@ -139,19 +187,27 @@ export default function MatchDetailScreen() {
 
     setActionLoading(true);
     try {
+      const newPlayer = {
+        userId: user.uid,
+        userName,
+        position: selectedPosition,
+      };
+
+      // Update using direct array instead of arrayUnion
+      const updatedPlayers = [...players, newPlayer];
+
       await updateDoc(doc(db, "matches", match.id), {
-        players: arrayUnion({
-          userId: user.uid,
-          userName,
-          position: selectedPosition,
-        }),
+        players: updatedPlayers,
+        currentPlayers: updatedPlayers.length,
       });
+
       await loadMatch();
       setShowPositionPicker(false);
       setSelectedPosition("");
       Alert.alert("Success", "You joined the match!");
       router.push("/(tabs)/home");
-    } catch (e) {
+    } catch (error) {
+      console.error("Join error:", error);
       Alert.alert("Error", "Could not join. Please try again.");
     } finally {
       setActionLoading(false);
@@ -160,8 +216,13 @@ export default function MatchDetailScreen() {
 
   const handleLeave = async () => {
     if (!user || !match?.id || !isJoined) return;
+
     const entry = players.find((p) => p.userId === user.uid);
-    if (!entry) return;
+    if (!entry) {
+      Alert.alert("Error", "You are not in this match.");
+      return;
+    }
+
     Alert.alert("Leave Match", "Are you sure you want to leave this match?", [
       { text: "Cancel", style: "cancel" },
       {
@@ -170,11 +231,18 @@ export default function MatchDetailScreen() {
         onPress: async () => {
           setActionLoading(true);
           try {
+            // Filter out current user from players array
+            const updatedPlayers = players.filter((p) => p.userId !== user.uid);
+
             await updateDoc(doc(db, "matches", match.id), {
-              players: arrayRemove(entry),
+              players: updatedPlayers,
+              currentPlayers: updatedPlayers.length,
             });
+
             await loadMatch();
-          } catch {
+            Alert.alert("Success", "You left the match.");
+          } catch (error) {
+            console.error("Leave error:", error);
             Alert.alert("Error", "Could not leave. Please try again.");
           } finally {
             setActionLoading(false);

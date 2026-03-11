@@ -1,16 +1,12 @@
-import * as Notifications from "expo-notifications";
-import { doc, getDoc, setDoc, collection, addDoc, serverTimestamp } from "firebase/firestore";
+import {
+  doc,
+  getDoc,
+  setDoc,
+  collection,
+  addDoc,
+  serverTimestamp,
+} from "firebase/firestore";
 import { db } from "@/config/firebase";
-
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,      
-    shouldPlaySound: true,       
-    shouldSetBadge: true,        
-    shouldShowBanner: true,     
-    shouldShowList: true,        
-  }),
-});
 
 export async function registerForPushNotificationsAsync(userId: string) {
   try {
@@ -20,7 +16,7 @@ export async function registerForPushNotificationsAsync(userId: string) {
         notificationsEnabled: true,
         updatedAt: new Date(),
       },
-      { merge: true }
+      { merge: true },
     );
     console.log("Notifications enabled for user");
   } catch (error) {
@@ -33,22 +29,22 @@ export async function sendNotificationToUser(
   userId: string,
   title: string,
   body: string,
-  data?: any
+  data?: any,
 ) {
   try {
     const userDoc = await getDoc(doc(db, "users", userId));
 
     if (!userDoc.exists() || !userDoc.data()?.notificationsEnabled) {
-      console.warn("⚠️ Notifications not enabled for user:", userId);
+      console.warn("Notifications not enabled for user:", userId);
       return;
     }
 
-    // Create notification in Firestore (will trigger popup via listener)
+    // Create notification with proper data structure
     await addDoc(collection(db, "notifications"), {
       userId: userId,
       title: title,
       body: body,
-      data: data || {},
+      data: data || {}, // This includes fromUserId, type, etc.
       read: false,
       createdAt: serverTimestamp(),
     });

@@ -161,6 +161,7 @@ npx expo start -c --tunnel
 | mike@test.com   | test123  | Mike   | CM       |
 | alex@test.com   | test123  | Alex   | CM/ST    |
 | maggie@test.com | test123  | Maggie | CB       |
+| lex@test.com    | Test123.363  | Lex    | CB       |
 
 ### Test Scenarios
 
