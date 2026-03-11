@@ -120,7 +120,6 @@ export default function UserProfileScreen() {
       const me = await getDoc(doc(db, "users", currentUserId));
       const fromUserName = me.exists() ? me.data().name : "Someone";
 
-      // Create challenge
       await addDoc(collection(db, "challenges"), {
         fromUserId: currentUserId,
         fromUserName,
@@ -130,13 +129,12 @@ export default function UserProfileScreen() {
         createdAt: new Date(),
       });
 
-      // Send notification
       const challengeLabel =
         challengeType === "penalty_shootout" ? "Penalty Shootout" : "1v1 Match";
 
       await sendNotificationToUser(
         userId,
-        "New Challenge!",
+        "New Challenge",
         `${fromUserName} challenged you to ${challengeLabel}`,
         {
           type: "challenge",
@@ -165,19 +163,17 @@ export default function UserProfileScreen() {
       const newRating =
         count > 0 ? (current * count + ratingValue) / (count + 1) : ratingValue;
 
-      // Update rating
       await updateDoc(userRef, {
         rating: Math.round(newRating * 10) / 10,
         ratingCount: count + 1,
       });
 
-      // Send notification
       const myDoc = await getDoc(doc(db, "users", currentUserId));
       const myName = myDoc.data()?.name ?? "Someone";
 
       await sendNotificationToUser(
         userId,
-        "New Rating!",
+        "New Rating",
         `${myName} gave you a rating of (${ratingValue}/10)`,
         {
           type: "rating",
@@ -209,7 +205,6 @@ export default function UserProfileScreen() {
       const myDoc = await getDoc(doc(db, "users", myId));
       const senderName = myDoc.data()?.name ?? "Someone";
 
-      // Send message
       await addDoc(collection(db, "chats", chatId, "messages"), {
         text: newMessage.trim(),
         senderId: myId,
@@ -217,15 +212,15 @@ export default function UserProfileScreen() {
         createdAt: serverTimestamp(),
       });
 
-      // Send notification
+      // FIX: Use fromUserId instead of senderId
       await sendNotificationToUser(
         otherId,
-        `💬 ${senderName}`,
+        `${senderName}`,
         newMessage.trim(),
         {
           type: "message",
-          senderId: myId,
-          senderName,
+          fromUserId: myId, // CHANGED from senderId
+          fromUserName: senderName,
           chatId,
         },
       );
