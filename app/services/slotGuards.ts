@@ -32,7 +32,8 @@ export async function createReservationUnique(payload: {
   const date = normalizeDate(payload.date);
   const time = toHour(payload.time);
 
-  const fieldKey = payload.fieldName || payload.fieldId;
+  // use stable field id for uniqueness
+  const fieldKey = payload.fieldId || payload.fieldName;
   const slotKey = makeSlotKey(fieldKey, date, time);
   const startsAtMs = toStartsAtMs(date, time);
 
@@ -46,7 +47,7 @@ export async function createReservationUnique(payload: {
       ...payload,
       fieldKey: normalizeField(fieldKey),
       date,
-      time,
+      time, // HH:00
       timeSlot: payload.timeSlot ?? time,
       slotKey,
       startsAtMs,
@@ -77,7 +78,7 @@ export async function createMatchUnique(payload: {
     tx.set(matchRef, {
       ...payload,
       date,
-      time,
+      time, // HH:00
       slotKey,
       startsAtMs,
       createdAt: serverTimestamp(),

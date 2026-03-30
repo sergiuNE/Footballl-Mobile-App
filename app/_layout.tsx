@@ -10,6 +10,7 @@ import {
   onSnapshot,
   Unsubscribe,
 } from "firebase/firestore";
+import { startPresenceTracking } from "./services/presence";
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -29,108 +30,97 @@ export default function RootLayout() {
   const isInitialLoad = useRef(true);
 
   useEffect(() => {
+    let stopPresence: null | (() => void | Promise<void>) = null;
+
     const authUnsubscribe = auth.onAuthStateChanged((user) => {
-      // CRITICAL: Cleanup IMMEDIATELY when user changes
+      // cleanup old presence
+      if (stopPresence) {
+        void stopPresence();
+        stopPresence = null;
+      }
+
+      // cleanup notifications listener
       if (firestoreUnsubscribe.current) {
         try {
           firestoreUnsubscribe.current();
-          console.log("Firestore listener cleaned up");
-        } catch (error) {
-          console.error("Cleanup error:", error);
-        }
+        } catch {}
         firestoreUnsubscribe.current = null;
       }
 
-      // Reset state
       seenNotifications.current.clear();
       isInitialLoad.current = true;
 
-      // ONLY setup listener if user is logged in
       if (user) {
-        registerForPushNotificationsAsync(user.uid);
+        // start presence tracking
+        stopPresence = startPresenceTracking(user.uid);
 
-        try {
-          const notifQuery = query(
-            collection(db, "notifications"),
-            where("userId", "==", user.uid),
-          );
+        void registerForPushNotificationsAsync(user.uid).catch((e: any) => {
+          console.log("push register error:", e?.code, e?.message);
+        });
 
-          firestoreUnsubscribe.current = onSnapshot(
-            notifQuery,
-            (snapshot) => {
-              // Check if user is still logged in
-              if (!auth.currentUser) {
-                console.log("User logged out - ignoring snapshot");
-                return;
-              }
+        const notifQuery = query(
+          collection(db, "notifications"),
+          where("userId", "==", user.uid),
+        );
 
-              if (isInitialLoad.current) {
-                snapshot.docs.forEach((doc) => {
-                  seenNotifications.current.add(doc.id);
-                });
-                isInitialLoad.current = false;
-                return;
-              }
+        firestoreUnsubscribe.current = onSnapshot(
+          notifQuery,
+          (snapshot) => {
+            if (!auth.currentUser) return;
 
-              snapshot.docChanges().forEach(async (change) => {
-                if (change.type === "added") {
-                  const notifId = change.doc.id;
+            if (isInitialLoad.current) {
+              snapshot.docs.forEach((d) => seenNotifications.current.add(d.id));
+              isInitialLoad.current = false;
+              return;
+            }
 
-                  if (seenNotifications.current.has(notifId)) {
-                    return;
-                  }
+            snapshot.docChanges().forEach(async (change) => {
+              if (change.type !== "added") return;
+              const notifId = change.doc.id;
+              if (seenNotifications.current.has(notifId)) return;
 
-                  seenNotifications.current.add(notifId);
-                  const data = change.doc.data();
+              seenNotifications.current.add(notifId);
+              const data = change.doc.data();
 
-                  await Notifications.scheduleNotificationAsync({
-                    content: {
-                      title: data.title || "New Notification",
-                      body: data.body || "",
-                      data: data.data || {},
-                      sound: true,
-                    },
-                    trigger: null,
-                  });
-
-                  console.log("Popup shown:", data.title);
-                }
+              await Notifications.scheduleNotificationAsync({
+                content: {
+                  title: data.title || "New Notification",
+                  body: data.body || "",
+                  data: data.data || {},
+                  sound: true,
+                },
+                trigger: null,
               });
-            },
-            (error) => {
-              // Only log if it's NOT a permission error from logout
-              if (error.code !== "permission-denied") {
-                console.error("Notification listener error:", error);
-              }
-            },
-          );
-        } catch (error) {
-          console.error("Error setting up listener:", error);
-        }
-      } else {
-        console.log("User logged out - no listener setup");
+            });
+          },
+          (error) => {
+            console.log(
+              "notifications listener error:",
+              error?.code,
+              error?.message,
+            );
+          },
+        );
       }
     });
 
     notificationListener.current =
-      Notifications.addNotificationReceivedListener((notification) => {
-        console.log("Notification received:", notification);
-      });
+      Notifications.addNotificationReceivedListener(() => {});
 
     responseListener.current =
-      Notifications.addNotificationResponseReceivedListener((response) => {
-        console.log("Notification tapped");
-      });
+      Notifications.addNotificationResponseReceivedListener(() => {});
 
     return () => {
       authUnsubscribe();
+
+      if (stopPresence) void stopPresence();
+
       if (firestoreUnsubscribe.current) {
         try {
           firestoreUnsubscribe.current();
-        } catch (error) {
-          console.error("Cleanup error on unmount:", error);
-        }
+        } catch {}
       }
+
       notificationListener.current?.remove();
       responseListener.current?.remove();
     };

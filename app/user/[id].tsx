@@ -40,7 +40,17 @@ import Card from "../../components/Card";
 import { UserProfile } from "@/types";
 import { ChatMessage } from "@/types";
 import { sendNotificationToUser } from "../services/notifications";
-import { formatLastSeen } from "../services/presence";
+
+const formatLastSeen = (lastSeen: any) => {
+  if (!lastSeen) return "unknown";
+  const d = lastSeen?.toDate ? lastSeen.toDate() : new Date(lastSeen);
+  const diffMin = Math.floor((Date.now() - d.getTime()) / 60000);
+  if (diffMin < 1) return "just now";
+  if (diffMin < 60) return `${diffMin}m ago`;
+  const h = Math.floor(diffMin / 60);
+  if (h < 24) return `${h}h ago`;
+  return `${Math.floor(h / 24)}d ago`;
+};
 
 export default function UserProfileScreen() {
   const { id: userId } = useLocalSearchParams<{ id: string }>();

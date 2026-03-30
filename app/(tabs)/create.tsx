@@ -9,7 +9,7 @@ import {
   Modal,
 } from "react-native";
 import { useState } from "react";
-import { collection, doc, getDoc } from "firebase/firestore";
+import { doc, getDoc } from "firebase/firestore";
 import { auth, db } from "../../config/firebase";
 import { router } from "expo-router";
 import Button from "../../components/Button";
@@ -81,12 +81,15 @@ export default function Create() {
       const userDoc = await getDoc(doc(db, "users", auth.currentUser.uid));
       const userName = userDoc.exists() ? userDoc.data().name : "Unknown";
 
-      const fieldId = location.trim().toLowerCase().replace(/\s+/g, "-");
-      const date = `${dateTime.getFullYear()}-${String(
-        dateTime.getMonth() + 1,
-      ).padStart(2, "0")}-${String(dateTime.getDate()).padStart(2, "0")}`;
-      const time = `${String(dateTime.getHours()).padStart(2, "0")}:00`;
+      const fieldId = location
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-|-$/g, "");
 
+      const date = `${dateTime.getFullYear()}-${String(dateTime.getMonth() + 1).padStart(2, "0")}-${String(dateTime.getDate()).padStart(2, "0")}`;
+      const time = `${String(dateTime.getHours()).padStart(2, "0")}:00`;
+      
       await createMatchUnique({
         fieldId,
         date,

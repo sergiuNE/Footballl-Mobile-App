@@ -26,9 +26,10 @@ import {
 } from "../../constants/theme";
 import { LinearGradient } from "expo-linear-gradient";
 import { User } from "../../types";
-//import * as ImagePicker from "expo-image-picker";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { Ionicons } from "@expo/vector-icons";
+import * as ImagePicker from "expo-image-picker";
+import { setDoc } from "firebase/firestore";
 
 export default function Profile() {
   const [user, setUser] = useState<User | null>(null);
@@ -71,22 +72,29 @@ export default function Profile() {
     }
   };
 
-  /*const handlePickImage = async () => {
-    try {
-      // Request permission
-      const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      
-      if (!permissionResult.granted) {
-        Alert.alert("Permission Required", "Please allow access to your photos to upload a profile picture.");
-        return;
-      }
+  const handlePickImage = async () => {
+    Alert.alert(
+      "Storage unavailable",
+      "Profile photo upload requires Firebase Storage (Blaze plan) or another image host.",
+    );
+    return;
+  };
 
-      // Launch image picker
+  /*
+  
+  Add this when you have Firebase Storage (Blaze plan)!
+
+  const handlePickImage = async () => {
+    try {
+      const permission =
+        await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!permission.granted) return;
+
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: "images" as any,
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
         aspect: [1, 1],
-        quality: 0.5,
+        quality: 0.8,
       });
 
       if (!result.canceled && result.assets[0]) {
@@ -94,7 +102,6 @@ export default function Profile() {
       }
     } catch (error) {
       console.error("Error picking image:", error);
-      Alert.alert("Error", "Could not pick image.");
     }
   };*/
 
@@ -108,19 +115,17 @@ export default function Profile() {
       const blob = await response.blob();
 
       // Create a reference to Firebase Storage
-      const fileName = `profile_photos/${auth.currentUser.uid}_${Date.now()}.jpg`;
+      const fileName = `profilePhotos/${auth.currentUser.uid}.jpg`;
       const storageRef = ref(storage, fileName);
 
-      // Upload the file
-      await uploadBytes(storageRef, blob);
-
-      // Get download URL
+      await uploadBytes(storageRef, blob, { contentType: "image/jpeg" });
       const downloadURL = await getDownloadURL(storageRef);
 
-      // Update user document
-      await updateDoc(doc(db, "users", auth.currentUser.uid), {
-        photoURL: downloadURL,
-      });
+      await setDoc(
+        doc(db, "users", auth.currentUser.uid),
+        { photoURL: downloadURL },
+        { merge: true },
+      );
 
       Alert.alert("Success", "Profile photo updated!");
     } catch (error) {
@@ -191,16 +196,16 @@ export default function Profile() {
         style={styles.header}
       >
         <View style={styles.avatarContainer}>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.avatar}
-            //onPress={handlePickImage}
+            onPress={handlePickImage}
             disabled={uploadingPhoto}
           >
             {uploadingPhoto ? (
               <ActivityIndicator size="large" color={Colors.primary} />
             ) : user?.photoURL ? (
-              <Image 
-                source={{ uri: user.photoURL }} 
+              <Image
+                source={{ uri: user.photoURL }}
                 style={styles.avatarImage}
               />
             ) : (
@@ -209,9 +214,9 @@ export default function Profile() {
               </Text>
             )}
           </TouchableOpacity>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.cameraButton}
-            //onPress={handlePickImage}
+            onPress={handlePickImage}
             disabled={uploadingPhoto}
           >
             <Ionicons name="camera" size={20} color={Colors.white} />

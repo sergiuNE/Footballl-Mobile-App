@@ -10,13 +10,7 @@ import {
 } from "react-native";
 import { useLocalSearchParams, router } from "expo-router";
 import { useEffect, useState } from "react";
-import {
-  doc,
-  getDoc,
-  updateDoc,
-  arrayUnion,
-  arrayRemove,
-} from "firebase/firestore";
+import { doc, getDoc, updateDoc } from "firebase/firestore";
 import { auth, db } from "../../config/firebase";
 import type { Match, PlayerInMatch } from "../../types/match";
 import { FOOTBALL_POSITIONS } from "../../constants/positions";
@@ -32,17 +26,50 @@ import {
 import { LinearGradient } from "expo-linear-gradient";
 import Card from "../../components/Card";
 
-function formatDate(dateVal: { seconds: number } | Date): string {
-  if (!dateVal) return "–";
-  const d =
-    "seconds" in dateVal ? new Date(dateVal.seconds * 1000) : new Date(dateVal);
+const toSafeDate = (value: any): Date | null => {
+  if (!value) return null;
+
+  if (value instanceof Date) {
+    return Number.isNaN(value.getTime()) ? null : value;
+  }
+
+  if (typeof value === "object") {
+    if (typeof value.toDate === "function") {
+      const d = value.toDate();
+      return d instanceof Date && !Number.isNaN(d.getTime()) ? d : null;
+    }
+    if ("seconds" in value && typeof value.seconds === "number") {
+      return new Date(value.seconds * 1000);
+    }
+    if ("_seconds" in value && typeof value._seconds === "number") {
+      return new Date(value._seconds * 1000);
+    }
+  }
+
+  if (typeof value === "number") {
+    const ms = value < 1e12 ? value * 1000 : value;
+    const d = new Date(ms);
+    return Number.isNaN(d.getTime()) ? null : d;
+  }
+
+  if (typeof value === "string") {
+    const d = new Date(value);
+    return Number.isNaN(d.getTime()) ? null : d;
+  }
+
+  return null;
+};
+
+const formatDate = (value: any) => {
+  const d = toSafeDate(value);
+  if (!d) return "-";
   return d.toLocaleDateString("en-US", {
-    weekday: "long",
+    weekday: "short",
     day: "numeric",
-    month: "long",
+    month: "short",
     year: "numeric",
   });
-}
+};
 
 export default function MatchDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -93,14 +120,10 @@ export default function MatchDetailScreen() {
     if (!user) return;
 
     try {
-      const matchDate =
-        "seconds" in matchData.date
-          ? new Date((matchData.date as any).seconds * 1000)
-          : new Date(matchData.date);
+      const matchDate = toSafeDate((matchData as any).date);
+      if (!matchDate) return;
 
       const now = new Date();
-
-      // Check if match is in the past (more than 2 hours ago to account for match duration)
       const isPast = matchDate.getTime() < now.getTime() - 2 * 60 * 60 * 1000;
 
       if (isPast) {
@@ -109,7 +132,6 @@ export default function MatchDetailScreen() {
         );
 
         if (isUserInMatch) {
-          // Auto-remove user from past match
           const updatedPlayers = matchData.players.filter(
             (p) => p.userId !== user.uid,
           );
@@ -309,7 +331,7 @@ export default function MatchDetailScreen() {
             <View style={styles.infoTextContainer}>
               <Text style={styles.infoLabel}>Date</Text>
               <Text style={styles.infoValue}>
-                {formatDate(match.date as { seconds: number })}
+                {formatDate((match as any).date)}
               </Text>
             </View>
           </View>
