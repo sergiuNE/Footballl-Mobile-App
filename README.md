@@ -34,13 +34,22 @@ Built with React Native, Expo, and Firebase.
    - Copy `config/firebase.example.ts` to `config/firebase.ts`
    - Add your Firebase credentials
 
-4. **Start the app**
+4. **Configure Cloudinary (for profile photo upload)**
+   - Create a `.env` file in the project root
+   - Add:
+
+   ```env
+   EXPO_PUBLIC_CLOUDINARY_CLOUD_NAME=your_cloud_name
+   EXPO_PUBLIC_CLOUDINARY_UPLOAD_PRESET=your_unsigned_preset
+   ```
+
+5. **Start the app**
 
    ```bash
    npx expo start --tunnel
    ```
 
-5. **Open on your phone**
+6. **Open on your phone**
    - Scan the QR code with your camera (iOS)
    - Or scan with Expo Go app (Android)
 
@@ -153,15 +162,15 @@ npx expo start -c --tunnel
 
 ### Test Accounts
 
-| Email           | Password | Name   | Position |
-| --------------- | -------- | ------ | -------- |
-| test@test.com   | test123  | Sergiu | LW/RW    |
-| test1@test.com  | Test1234 | Rayane | RB/LB    |
-| john@test.com   | test123  | John   | ST       |
-| mike@test.com   | test123  | Mike   | CM       |
-| alex@test.com   | test123  | Alex   | CM/ST    |
-| maggie@test.com | test123  | Maggie | CB       |
-| lex@test.com    | Test123.363  | Lex    | CB       |
+| Email           | Password    | Name   | Position |
+| --------------- | ----------- | ------ | -------- |
+| test@test.com   | test123     | Sergiu | LW/RW    |
+| test1@test.com  | Test1234    | Rayane | RB/LB    |
+| john@test.com   | test123     | John   | ST       |
+| mike@test.com   | test123     | Mike   | CM       |
+| alex@test.com   | test123     | Alex   | CM/ST    |
+| maggie@test.com | test123     | Maggie | CB       |
+| lex@test.com    | Test123.363 | Lex    | CB       |
 
 ### Test Scenarios
 

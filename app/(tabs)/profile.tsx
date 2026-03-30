@@ -10,8 +10,8 @@ import {
 } from "react-native";
 import { useState, useEffect } from "react";
 import { signOut } from "firebase/auth";
-import { doc, updateDoc, onSnapshot } from "firebase/firestore";
-import { auth, db, storage } from "../../config/firebase";
+import { doc, updateDoc, onSnapshot, setDoc } from "firebase/firestore";
+import { auth, db } from "../../config/firebase";
 import { router } from "expo-router";
 import Card from "../../components/Card";
 import Button from "../../components/Button";
@@ -26,10 +26,8 @@ import {
 } from "../../constants/theme";
 import { LinearGradient } from "expo-linear-gradient";
 import { User } from "../../types";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
-import { setDoc } from "firebase/firestore";
 
 export default function Profile() {
   const [user, setUser] = useState<User | null>(null);
@@ -40,10 +38,13 @@ export default function Profile() {
   const [saving, setSaving] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
 
+  const CLOUDINARY_CLOUD_NAME = process.env.EXPO_PUBLIC_CLOUDINARY_CLOUD_NAME;
+  const CLOUDINARY_UPLOAD_PRESET =
+    process.env.EXPO_PUBLIC_CLOUDINARY_UPLOAD_PRESET;
+
   useEffect(() => {
     if (!auth.currentUser) return;
 
-    // Real-time listener for user data
     const unsubscribe = onSnapshot(
       doc(db, "users", auth.currentUser.uid),
       (docSnap) => {
@@ -52,8 +53,8 @@ export default function Profile() {
           setUser(userData);
           setName(userData.name);
           setSelectedPositions(userData.positions || []);
-          setLoading(false);
         }
+        setLoading(false);
       },
       (error) => {
         console.error("Error loading user:", error);
@@ -62,7 +63,7 @@ export default function Profile() {
     );
 
     return () => unsubscribe();
-  }, [auth.currentUser]);
+  }, []);
 
   const handleTogglePosition = (position: string) => {
     if (selectedPositions.includes(position)) {
@@ -71,18 +72,6 @@ export default function Profile() {
       setSelectedPositions([...selectedPositions, position]);
     }
   };
-
-  const handlePickImage = async () => {
-    Alert.alert(
-      "Storage unavailable",
-      "Profile photo upload requires Firebase Storage (Blaze plan) or another image host.",
-    );
-    return;
-  };
-
-  /*
-  
-  Add this when you have Firebase Storage (Blaze plan)!
 
   const handlePickImage = async () => {
     try {
@@ -102,28 +91,45 @@ export default function Profile() {
       }
     } catch (error) {
       console.error("Error picking image:", error);
+      Alert.alert("Error", "Could not pick image.");
     }
-  };*/
+  };
 
   const uploadPhoto = async (uri: string) => {
     if (!auth.currentUser) return;
 
+    if (!CLOUDINARY_CLOUD_NAME || !CLOUDINARY_UPLOAD_PRESET) {
+      Alert.alert("Error", "Cloudinary env vars are missing.");
+      return;
+    }
+
     setUploadingPhoto(true);
     try {
-      // Convert URI to blob
-      const response = await fetch(uri);
-      const blob = await response.blob();
+      const formData = new FormData();
+      formData.append("file", {
+        uri,
+        type: "image/jpeg",
+        name: `avatar_${auth.currentUser.uid}.jpg`,
+      } as any);
+      formData.append("upload_preset", CLOUDINARY_UPLOAD_PRESET);
 
-      // Create a reference to Firebase Storage
-      const fileName = `profilePhotos/${auth.currentUser.uid}.jpg`;
-      const storageRef = ref(storage, fileName);
+      const response = await fetch(
+        `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`,
+        {
+          method: "POST",
+          body: formData,
+        },
+      );
 
-      await uploadBytes(storageRef, blob, { contentType: "image/jpeg" });
-      const downloadURL = await getDownloadURL(storageRef);
+      const data = await response.json();
+
+      if (!response.ok || !data?.secure_url) {
+        throw new Error(data?.error?.message || "Cloudinary upload failed");
+      }
 
       await setDoc(
         doc(db, "users", auth.currentUser.uid),
-        { photoURL: downloadURL },
+        { photoURL: data.secure_url },
         { merge: true },
       );
 
@@ -214,6 +220,7 @@ export default function Profile() {
               </Text>
             )}
           </TouchableOpacity>
+
           <TouchableOpacity
             style={styles.cameraButton}
             onPress={handlePickImage}
@@ -276,7 +283,7 @@ export default function Profile() {
               onPress={() => {
                 setEditing(false);
                 setName(user.name);
-                setSelectedPositions(user.positions);
+                setSelectedPositions(user.positions || []);
               }}
               variant="outline"
               fullWidth
@@ -314,7 +321,6 @@ export default function Profile() {
             <View style={styles.infoRow}>
               <Text style={styles.infoLabel}>Positions</Text>
               <View style={styles.positionBadges}>
-                {/* safety checks */}
                 {user.positions && user.positions.length > 0 ? (
                   user.positions.map((pos) => (
                     <View key={pos} style={styles.positionBadge}>
