@@ -10,7 +10,14 @@ import {
   Platform,
 } from "react-native";
 import { useState, useEffect } from "react";
-import { collection, getDocs, addDoc, query, where } from "firebase/firestore";
+import {
+  collection,
+  getDocs,
+  query,
+  where,
+  doc,
+  deleteDoc,
+} from "firebase/firestore";
 import { auth, db } from "../../config/firebase";
 import {
   Colors,
@@ -21,6 +28,7 @@ import {
 } from "../../constants/theme";
 import { LinearGradient } from "expo-linear-gradient";
 import DateTimePicker from "@react-native-community/datetimepicker";
+import { createReservationUnique } from "../services/slotGuards";
 import { Ionicons } from "@expo/vector-icons";
 import Card from "../../components/Card";
 
@@ -31,6 +39,7 @@ type Reservation = {
   fieldName: string;
   date: Date;
   timeSlot: string;
+  startsAtMs?: number;
 };
 
 const DEFAULT_FIELDS: Field[] = [
@@ -85,6 +94,15 @@ const TIME_SLOTS = [
   "20:00",
 ];
 
+const formatLocalDate = (d: Date) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+
+const toStartsAtMs = (dateStr: string, timeStr: string) => {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  const [hh, mm] = timeStr.split(":").map(Number);
+  return new Date(y, m - 1, d, hh, mm, 0, 0).getTime();
+};
+
 export default function ReserveScreen() {
   const [fields, setFields] = useState<Field[]>(DEFAULT_FIELDS);
   const [reservations, setReservations] = useState<Reservation[]>([]);
@@ -96,8 +114,17 @@ export default function ReserveScreen() {
   const [showDatePicker, setShowDatePicker] = useState(false);
 
   useEffect(() => {
-    loadFields();
-    loadMyReservations();
+    (async () => {
+      try {
+        await loadFields();
+        await cleanupMyPastReservations();
+        await loadMyReservations();
+      } catch {
+        Alert.alert("Error", "Could not load reservations.");
+      } finally {
+        setLoading(false);
+      }
+    })();
   }, []);
 
   const loadFields = async () => {
@@ -108,30 +135,78 @@ export default function ReserveScreen() {
       }
     } catch {
       // keep defaults
-    } finally {
-      setLoading(false);
     }
   };
 
-  const loadMyReservations = async () => {
+  const cleanupMyPastReservations = async () => {
     if (!auth.currentUser) return;
+
+    const q = query(
+      collection(db, "reservations"),
+      where("userId", "==", auth.currentUser.uid),
+    );
+    const snap = await getDocs(q);
+    const now = Date.now();
+
+    await Promise.all(
+      snap.docs.map(async (d) => {
+        const data = d.data() as any;
+
+        let startsAtMs: number | null =
+          typeof data?.startsAtMs === "number" ? data.startsAtMs : null;
+
+        if (!startsAtMs) {
+          const dateStr =
+            typeof data.date === "string"
+              ? data.date.slice(0, 10)
+              : data.date?.toDate
+                ? formatLocalDate(data.date.toDate())
+                : null;
+          const timeStr = (data.time || data.timeSlot || "").slice(0, 5);
+
+          if (dateStr && timeStr) {
+            startsAtMs = toStartsAtMs(dateStr, timeStr);
+          }
+        }
+
+        if (startsAtMs && startsAtMs < now) {
+          await deleteDoc(doc(db, "reservations", d.id));
+        }
+      }),
+    );
+  };
+
+  const loadMyReservations = async () => {
+    if (!auth.currentUser) {
+      setReservations([]);
+      return;
+    }
+
     try {
       const q = query(
         collection(db, "reservations"),
         where("userId", "==", auth.currentUser.uid),
       );
       const snap = await getDocs(q);
-      const list = snap.docs.map((d) => {
-        const d_ = d.data();
-        const date = d_.date?.toDate?.() ?? new Date(d_.date);
+
+      const list: Reservation[] = snap.docs.map((d) => {
+        const data = d.data() as any;
+        const date =
+          data.date?.toDate?.() ??
+          (typeof data.date === "string"
+            ? new Date(`${data.date}T00:00:00`)
+            : new Date());
+
         return {
           id: d.id,
-          fieldId: d_.fieldId,
-          fieldName: d_.fieldName,
+          fieldId: data.fieldId,
+          fieldName: data.fieldName,
           date,
-          timeSlot: d_.timeSlot,
+          timeSlot: data.timeSlot ?? data.time ?? "",
+          startsAtMs: data.startsAtMs,
         };
       });
+
       setReservations(list);
     } catch {
       setReservations([]);
@@ -148,24 +223,36 @@ export default function ReserveScreen() {
       Alert.alert("Error", "Choose a field, date and time.");
       return;
     }
+
     setSaving(true);
     try {
-      await addDoc(collection(db, "reservations"), {
+      const dateStr = formatLocalDate(selectedDate);
+
+      await createReservationUnique({
         userId: auth.currentUser.uid,
         fieldId: selectedField.id,
         fieldName: selectedField.name,
-        date: selectedDate,
+        date: dateStr,
+        time: selectedSlot,
         timeSlot: selectedSlot,
-        createdAt: new Date(),
       });
+
       await loadMyReservations();
       Alert.alert(
         "Reserved",
         `${selectedField.name} on ${selectedDate.toLocaleDateString("en-US")} at ${selectedSlot}`,
       );
       setSelectedSlot(null);
-    } catch (e) {
-      Alert.alert("Error", "Reservation failed.");
+    } catch (e: any) {
+      if (e?.message === "RESERVATION_SLOT_TAKEN") {
+        Alert.alert("Error", "This field is already reserved at this time.");
+      } else {
+        console.log("reserve error:", e?.code, e?.message, e);
+        Alert.alert(
+          "Error",
+          "Something went wrong during the reservation process.",
+        );
+      }
     } finally {
       setSaving(false);
     }
@@ -427,9 +514,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginRight: Spacing.md,
   },
-  fieldIconSelected: {
-    backgroundColor: Colors.primary,
-  },
+  fieldIconSelected: { backgroundColor: Colors.primary },
   fieldText: { flex: 1 },
   fieldTitle: { ...Typography.bodyBold, color: Colors.gray900 },
   fieldTitleSelected: { color: Colors.primary },
@@ -511,11 +596,7 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.xs,
   },
   resTitle: { ...Typography.bodyBold, color: Colors.gray900 },
-  resMeta: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: Spacing.xs,
-  },
+  resMeta: { flexDirection: "row", alignItems: "center", gap: Spacing.xs },
   resMetaText: {
     ...Typography.small,
     color: Colors.gray600,

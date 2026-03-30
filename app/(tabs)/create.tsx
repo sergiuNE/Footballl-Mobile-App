@@ -9,7 +9,7 @@ import {
   Modal,
 } from "react-native";
 import { useState } from "react";
-import { collection, addDoc, doc, getDoc } from "firebase/firestore";
+import { collection, doc, getDoc } from "firebase/firestore";
 import { auth, db } from "../../config/firebase";
 import { router } from "expo-router";
 import Button from "../../components/Button";
@@ -22,6 +22,7 @@ import {
   BorderRadius,
 } from "../../constants/theme";
 import { LinearGradient } from "expo-linear-gradient";
+import { createMatchUnique } from "../services/slotGuards";
 import DateTimePicker from "@react-native-community/datetimepicker";
 
 type SkillLevel = "beginner" | "intermediate" | "advanced" | "all";
@@ -80,18 +81,22 @@ export default function Create() {
       const userDoc = await getDoc(doc(db, "users", auth.currentUser.uid));
       const userName = userDoc.exists() ? userDoc.data().name : "Unknown";
 
-      const timeString = dateTime.toLocaleTimeString("en-US", {
-        hour: "2-digit",
-        minute: "2-digit",
-        hour12: false,
-      });
+      const fieldId = location.trim().toLowerCase().replace(/\s+/g, "-");
+      const date = `${dateTime.getFullYear()}-${String(
+        dateTime.getMonth() + 1,
+      ).padStart(2, "0")}-${String(dateTime.getDate()).padStart(2, "0")}`;
+      const time = `${String(dateTime.getHours()).padStart(2, "0")}:00`;
 
-      await addDoc(collection(db, "matches"), {
+      await createMatchUnique({
+        fieldId,
+        date,
+        time,
+        ownerId: auth.currentUser.uid,
+
         createdBy: auth.currentUser.uid,
         createdByName: userName,
         title: title.trim(),
-        date: dateTime,
-        time: timeString,
+        dateTime,
         location: location.trim(),
         maxPlayers: playersCount,
         currentPlayers: 0,
@@ -99,7 +104,6 @@ export default function Create() {
         skillLevel,
         status: "open",
         players: [],
-        createdAt: new Date(),
       });
 
       Alert.alert("Success", "Match created!", [
@@ -111,9 +115,15 @@ export default function Create() {
       setMaxPlayers("22");
       setDateTime(new Date());
       setSkillLevel("all");
-    } catch (error) {
-      console.error(error);
-      Alert.alert("Error", "Could not create match.");
+    } catch (e: any) {
+      if (e.message === "MATCH_SLOT_TAKEN") {
+        Alert.alert(
+          "Error",
+          "There is already a match for this field and time.",
+        );
+      } else {
+        Alert.alert("Error", "Something went wrong while creating the match.");
+      }
     } finally {
       setLoading(false);
     }
