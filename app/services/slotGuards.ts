@@ -1,5 +1,28 @@
 import { db } from "../../config/firebase";
 import { doc, runTransaction, serverTimestamp } from "firebase/firestore";
+import { collection, getDocs, deleteDoc, getDoc } from "firebase/firestore";
+
+export async function cleanupExpiredMatches() {
+  const matchesSnap = await getDocs(collection(db, "matches"));
+  const now = Date.now();
+
+  for (const matchDoc of matchesSnap.docs) {
+    const match = matchDoc.data();
+    if (match.reservationId) {
+      // Check reservation
+      const reservationRef = doc(db, "reservations", match.reservationId);
+      const reservationSnap = await getDoc(reservationRef);
+      if (
+        !reservationSnap.exists() ||
+        (reservationSnap.data().startsAtMs &&
+          reservationSnap.data().startsAtMs < now)
+      ) {
+        // Reservation is gone or in the past: delete match
+        await deleteDoc(doc(db, "matches", matchDoc.id));
+      }
+    }
+  }
+}
 
 const normalizeDate = (date: string) => date.trim().slice(0, 10); // yyyy-mm-dd
 const normalizeTime = (time: string) => time.trim().slice(0, 5); // HH:mm

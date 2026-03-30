@@ -9,7 +9,14 @@ import {
   Modal,
 } from "react-native";
 import { useState } from "react";
-import { doc, getDoc } from "firebase/firestore";
+import {
+  doc,
+  getDoc,
+  where,
+  query,
+  getDocs,
+  collection,
+} from "firebase/firestore";
 import { auth, db } from "../../config/firebase";
 import { router } from "expo-router";
 import Button from "../../components/Button";
@@ -24,6 +31,9 @@ import {
 import { LinearGradient } from "expo-linear-gradient";
 import { createMatchUnique } from "../services/slotGuards";
 import DateTimePicker from "@react-native-community/datetimepicker";
+import { Picker } from "@react-native-picker/picker";
+import { useEffect } from "react";
+import { Reservation } from "./reserve";
 
 type SkillLevel = "beginner" | "intermediate" | "advanced" | "all";
 
@@ -51,6 +61,30 @@ export default function Create() {
   const [loading, setLoading] = useState(false);
   const [showPicker, setShowPicker] = useState(false);
   const [pickerMode, setPickerMode] = useState<"date" | "time">("date");
+
+  const [reservations, setReservations] = useState<any[]>([]);
+  const [selectedReservation, setSelectedReservation] = useState<any | null>(
+    null,
+  );
+
+  useEffect(() => {
+    if (!auth.currentUser) return;
+    const uid = auth.currentUser.uid;
+    const fetchReservations = async () => {
+      const q = query(
+        collection(db, "reservations"),
+        where("userId", "==", uid),
+      );
+      const snap = await getDocs(q);
+      const now = Date.now();
+      setReservations(
+        snap.docs
+          .map((doc) => ({ id: doc.id, ...doc.data() }) as Reservation)
+          .filter((r) => r.startsAtMs && r.startsAtMs > now),
+      );
+    };
+    fetchReservations();
+  }, []);
 
   const skillLevels = [
     { id: "all", label: "All Levels", emoji: "🌟" },
@@ -89,12 +123,13 @@ export default function Create() {
 
       const date = `${dateTime.getFullYear()}-${String(dateTime.getMonth() + 1).padStart(2, "0")}-${String(dateTime.getDate()).padStart(2, "0")}`;
       const time = `${String(dateTime.getHours()).padStart(2, "0")}:00`;
-      
+
       await createMatchUnique({
         fieldId,
         date,
         time,
         ownerId: auth.currentUser.uid,
+        reservationId: selectedReservation?.id || null,
 
         createdBy: auth.currentUser.uid,
         createdByName: userName,
@@ -187,6 +222,36 @@ export default function Create() {
           onChangeText={setTitle}
         />
 
+        {reservations.length > 0 && (
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Link with reservation (optional)</Text>
+            <View style={styles.reservationPicker}>
+              <Picker
+                style={{ color: Colors.gray800 }}
+                itemStyle={{ fontSize: 13, color: Colors.gray800 }}
+                selectedValue={selectedReservation?.id || ""}
+                onValueChange={(itemValue) => {
+                  const found = reservations.find((r) => r.id === itemValue);
+                  setSelectedReservation(found || null);
+                  if (found) {
+                    setLocation(found.fieldName);
+                    setDateTime(new Date(found.startsAtMs));
+                  }
+                }}
+              >
+                <Picker.Item label="None" value="" />
+                {reservations.map((r) => (
+                  <Picker.Item
+                    key={r.id}
+                    label={`${r.fieldName}  ·  ${r.date} ${r.timeSlot || r.time}`}
+                    value={r.id}
+                  />
+                ))}
+              </Picker>
+            </View>
+          </View>
+        )}
+
         <View style={styles.inputGroup}>
           <Text style={styles.label}>Locatie *</Text>
           <ScrollView
@@ -200,8 +265,10 @@ export default function Create() {
                 style={[
                   styles.locationChip,
                   location === loc && styles.locationChipSelected,
+                  selectedReservation && styles.locationChipDisabled,
                 ]}
-                onPress={() => setLocation(loc)}
+                onPress={() => !selectedReservation && setLocation(loc)}
+                disabled={!!selectedReservation}
               >
                 <Text
                   style={[
@@ -219,9 +286,13 @@ export default function Create() {
         <View style={styles.inputGroup}>
           <Text style={styles.label}>Datum & tijd *</Text>
           <TouchableOpacity
-            style={styles.dateTimeRow}
+            style={[
+              styles.dateTimeRow,
+              selectedReservation && styles.dateTimeRowDisabled, // ← nieuw
+            ]}
             onPress={openDatePicker}
             activeOpacity={0.7}
+            disabled={!!selectedReservation} // ← nieuw
           >
             <Text style={styles.dateTimeText}>
               {dateTime.toLocaleDateString("nl-NL", {
@@ -236,7 +307,6 @@ export default function Create() {
                 minute: "2-digit",
               })}
             </Text>
-            <Text style={styles.dateTimeHint}>Kies datum en tijd</Text>
           </TouchableOpacity>
         </View>
 
@@ -497,5 +567,20 @@ const styles = StyleSheet.create({
   },
   iosPicker: {
     height: 200,
+  },
+  reservationPicker: {
+    borderWidth: 2,
+    borderColor: Colors.gray200,
+    borderRadius: BorderRadius.md,
+    backgroundColor: Colors.background,
+    height: 48,
+    justifyContent: "center",
+    overflow: "hidden",
+  },
+  locationChipDisabled: {
+    opacity: 0.4,
+  },
+  dateTimeRowDisabled: {
+    opacity: 0.4,
   },
 });

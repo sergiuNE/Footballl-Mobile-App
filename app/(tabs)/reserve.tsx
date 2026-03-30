@@ -33,7 +33,7 @@ import { Ionicons } from "@expo/vector-icons";
 import Card from "../../components/Card";
 
 type Field = { id: string; name: string; address: string };
-type Reservation = {
+export type Reservation = {
   id: string;
   fieldId: string;
   fieldName: string;
